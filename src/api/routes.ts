@@ -164,7 +164,6 @@ router.post('/analyze', async (req: Request, res: Response) => {
         stages: []
       },
       summary: body.claims && body.claims.length > 0 ? ValidationEngine.calculateSummary(claimsValidation.validations) : {
-        overall_status: "COMPLETED",
         claims_total: 0,
         verified: 0,
         partially_verified: 0,
@@ -172,6 +171,7 @@ router.post('/analyze', async (req: Request, res: Response) => {
         insufficient_evidence: 0
       },
       requirements: claimsValidation.validations || [],
+      claims: claimsValidation.validations || [],
       evidence: engine.getEvidence(),
       evidence_graph: evidenceGraph,
       validation_actions: claimsValidation.audit_trail || [],
@@ -182,6 +182,11 @@ router.post('/analyze', async (req: Request, res: Response) => {
         execution_failures: executionResult?.telemetry?.phases.filter(p => p.status === 'FAILED').map(p => p.stderr || p.stdout || '') || [],
         provider_failures: llmFailed ? [llmStatus.error_code] : [],
         unsupported_features: []
+      },
+      llm: llmStatus,
+      execution: {
+        supported: true,
+        telemetry: executionResult?.telemetry
       }
     };
 

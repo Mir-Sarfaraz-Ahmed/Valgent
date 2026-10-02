@@ -202,7 +202,7 @@ export interface ProjectReport {
   };
 
   summary: {
-    overall_status: string;
+    overall_status?: string;
     claims_total: number;
     verified: number;
     partially_verified: number;
@@ -234,6 +234,7 @@ export interface ProjectReport {
   };
 
   // Legacy fields for backward compatibility
+  claims?: ValidationResult[];
   llm?: LlmStatus;
   execution?: {
     supported: boolean;

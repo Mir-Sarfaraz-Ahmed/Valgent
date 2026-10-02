@@ -106,7 +106,6 @@ export class ValidationEngine {
 
   public static calculateSummary(validations: ValidationResult[]) {
     const summary = {
-      overall_status: 'COMPLETED',
       claims_total: validations.length,
       verified: 0,
       partially_verified: 0,
