@@ -1,0 +1,12 @@
+{
+  "name": "claim-validation-project",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo PASS"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

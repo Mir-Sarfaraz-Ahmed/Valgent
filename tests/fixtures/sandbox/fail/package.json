@@ -1,0 +1,6 @@
+{
+  "name": "fail-fixture",
+  "scripts": {
+    "test": "echo fail && exit 1"
+  }
+}

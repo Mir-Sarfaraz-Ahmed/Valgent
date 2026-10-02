@@ -1,0 +1,9 @@
+{
+  "name": "e2e-node-project-fail",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "echo 'Building...'",
+    "test": "node test.js"
+  },
+  "dependencies": {}
+}

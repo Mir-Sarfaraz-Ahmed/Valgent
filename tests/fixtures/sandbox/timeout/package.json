@@ -1,0 +1,6 @@
+{
+  "name": "timeout-fixture",
+  "scripts": {
+    "test": "node -e \"setTimeout(()=>{}, 10000)\""
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "success-fixture",
+  "scripts": {
+    "test": "echo success"
+  }
+}
