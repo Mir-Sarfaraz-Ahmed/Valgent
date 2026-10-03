@@ -13,71 +13,154 @@ import { ExecutionOrchestrator } from '../agents/execution';
 import { ValidationEngine } from '../validation/engine';
 import { ValidationOrchestrator } from '../validation/orchestrator';
 import { ProjectReport, AnalysisStage } from '../shared/types';
+import { PipelineTracker } from '../shared/pipeline';
+import { redactSecrets, classifyLlmError, classifyError, AnalysisError } from '../shared/errors';
 
 const router = Router();
-const llmRouter = new LLMRouter([
-  new GeminiProvider(),
-  new OpenRouterProvider()
-]);
-const orchestrator = new ExecutionOrchestrator();
 
 const AnalyzeRequestSchema = z.object({
   repository_url: z.string().url(),
   commit_sha: z.string().optional(),
+  project_id: z.string().optional(),
   claims: z.array(z.object({
     claim_id: z.string(),
     text: z.string()
-  })).optional()
+  })).optional(),
+  analysis_options: z.object({
+    skip_llm: z.boolean().optional(),
+    skip_execution: z.boolean().optional(),
+    timeout_ms: z.number().positive().optional()
+  }).optional(),
+  execution_policy: z.object({
+    allow_install: z.boolean().optional(),
+    allow_build: z.boolean().optional(),
+    allow_tests: z.boolean().optional(),
+    timeout_ms: z.number().positive().optional(),
+    memory_limit_mb: z.number().positive().optional()
+  }).optional(),
+  llm_policy: z.object({
+    preferred_providers: z.array(z.string()).optional(),
+    timeout_ms: z.number().positive().optional()
+  }).optional()
 });
+
+/**
+ * Structured pipeline log. Prefixes every message with analysis_id.
+ * Never logs secrets.
+ */
+function plog(analysisId: string, message: string): void {
+  console.log(`[${analysisId}] ${redactSecrets(message)}`);
+}
+
+function perr(analysisId: string, message: string, error?: any): void {
+  const errMsg = error ? `: ${redactSecrets(String(error?.message || error))}` : '';
+  console.error(`[${analysisId}] ${redactSecrets(message)}${errMsg}`);
+}
 
 router.post('/analyze', async (req: Request, res: Response) => {
   const analysisId = crypto.randomUUID();
-  let currentStage: AnalysisStage = 'INITIALIZED';
+  const tracker = new PipelineTracker(analysisId, req.body?.repository_url || 'unknown', req.body?.commit_sha);
   let descriptor: any = null;
 
-  console.log(`[${analysisId}] Starting analysis for request`);
+  tracker.enterStage('INITIALIZED');
+  plog(analysisId, 'Starting analysis for request');
 
   try {
+    // Validate request
     const body = AnalyzeRequestSchema.parse(req.body);
-    
+
+    const execPolicy = {
+      allowDependencyInstall: body.execution_policy?.allow_install ?? true,
+      allowBuild: body.execution_policy?.allow_build ?? true,
+      allowTests: body.execution_policy?.allow_tests ?? true,
+      timeoutMs: body.execution_policy?.timeout_ms ?? 120000,
+      memoryLimit: body.execution_policy?.memory_limit_mb ?? 1024,
+      cpuLimit: 2
+    };
+    const orchestrator = new ExecutionOrchestrator(execPolicy);
+
+    const llmTimeoutMs = body.llm_policy?.timeout_ms ?? 30000;
+    const providers = [];
+    if (body.llm_policy?.preferred_providers) {
+      for (const pref of body.llm_policy.preferred_providers) {
+        if (pref === 'gemini') providers.push(new GeminiProvider(llmTimeoutMs));
+        if (pref === 'openrouter') providers.push(new OpenRouterProvider(llmTimeoutMs));
+      }
+    }
+    if (providers.length === 0) {
+      providers.push(new GeminiProvider(llmTimeoutMs));
+      providers.push(new OpenRouterProvider(llmTimeoutMs));
+    }
+    const llmRouter = new LLMRouter(providers);
+
     // 1. Fetch Repository
-    currentStage = 'INGESTING';
-    console.log(`[${analysisId}] Fetching repository...`);
+    tracker.enterStage('INGESTING');
+    plog(analysisId, 'Fetching repository...');
     descriptor = await GithubFetcher.fetch(body.repository_url, body.commit_sha);
-    console.log(`[${analysisId}] Fetched at ${descriptor.local_path} (commit: ${descriptor.commit_sha})`);
+    plog(analysisId, `Fetched at ${descriptor.local_path} (commit: ${descriptor.commit_sha})`);
 
     const engine = new EvidenceEngine();
 
     // 2. Map Project
-    currentStage = 'PROJECT_MAPPED';
-    console.log(`[${analysisId}] Mapping project...`);
+    tracker.enterStage('PROJECT_MAPPED');
+    plog(analysisId, 'Mapping project...');
     const map = await ProjectMapper.map(descriptor);
 
-    // 3. Document Analysis & Static Analysis
-    currentStage = 'STATIC_ANALYSIS';
-    console.log(`[${analysisId}] Analyzing documentation & static analysis...`);
+    // 3. Extract Claims (record if present)
+    if (body.claims && body.claims.length > 0) {
+      tracker.enterStage('CLAIMS_EXTRACTED');
+      plog(analysisId, `Extracted ${body.claims.length} claims from request`);
+    }
+
+    // 4. Document Analysis & Static Analysis
+    tracker.enterStage('STATIC_ANALYSIS');
+    plog(analysisId, 'Analyzing documentation & static analysis...');
     await DocumentAnalyzer.analyze(descriptor, engine);
     const semanticModel = await StaticAnalyzer.analyze(descriptor, map, engine);
 
-    // 4. Execution Planning & Dynamic Analysis
-    currentStage = 'EXECUTION_PLANNING';
-    console.log(`[${analysisId}] Planning execution...`);
-    
-    currentStage = 'DYNAMIC_ANALYSIS';
-    console.log(`[${analysisId}] Performing dynamic analysis (execution)...`);
-    const executionResult = await orchestrator.orchestrate(descriptor, map, engine);
+    // 5. Dynamic Analysis (Execution)
+    let executionResult: any = undefined;
+    if (body.analysis_options?.skip_execution) {
+      plog(analysisId, 'Skipping dynamic analysis (execution) per request options');
+      executionResult = {
+        supported: true,
+        telemetry: {
+          execution_id: `EXE-SKIPPED-${crypto.randomUUID().substring(0,8)}`,
+          started_at: new Date().toISOString(),
+          duration_ms: 0,
+          package_manager: { name: 'unknown', confidence: 'LOW', detected_from: 'skip_execution', warnings: [] },
+          container: { image: 'none', network_mode: 'none', cpu_limit: '0', memory_limit: '0', pid_limit: '0' },
+          phases: [
+            { phase: 'INSTALL', status: 'NOT_ATTEMPTED', duration_ms: 0, network_enabled: false, skip_reason: 'skip_execution=true' },
+            { phase: 'BUILD', status: 'NOT_ATTEMPTED', duration_ms: 0, network_enabled: false, skip_reason: 'skip_execution=true' },
+            { phase: 'TEST', status: 'NOT_ATTEMPTED', duration_ms: 0, network_enabled: false, skip_reason: 'skip_execution=true' }
+          ]
+        }
+      };
+    } else {
+      tracker.enterStage('DYNAMIC_ANALYSIS');
+      plog(analysisId, 'Performing dynamic analysis (execution)...');
+      executionResult = await orchestrator.orchestrate(descriptor, map, engine);
+      if (executionResult?.telemetry?.execution_id) {
+        tracker.addExecutionId(executionResult.telemetry.execution_id);
+      }
+    }
 
-    // 5. Build Evidence Graph
-    currentStage = 'EVIDENCE_BUILT';
+    // 6. Build Evidence Graph
+    tracker.enterStage('EVIDENCE_BUILT');
+    plog(analysisId, 'Building evidence graph...');
     const { EvidenceGraphBuilder } = require('../evidence/graph-builder');
     const graphBuilder = new EvidenceGraphBuilder();
     const execResults = executionResult?.telemetry ? [executionResult.telemetry] : [];
     const evidenceGraphObj = graphBuilder.build(body.claims || [], engine.getEvidence(), semanticModel, execResults);
     const evidenceGraph = evidenceGraphObj.serialize();
 
-    // 6. LLM Reasoning
-    currentStage = 'LLM_SYNTHESIS';
-    console.log(`[${analysisId}] Sending to Gemini for reasoning...`);
+    // Record evidence IDs
+    for (const ev of engine.getEvidence()) {
+      tracker.addEvidenceId(ev.evidence_id);
+    }
+
+    // 7. LLM Reasoning
     let analysis: any = {
       architecture: { components: [], entry_points: [], api_routes: [], databases: [] },
       features: [],
@@ -85,64 +168,75 @@ router.post('/analyze', async (req: Request, res: Response) => {
     };
     let llmStatus: any = { status: 'SUCCESS', provider: llmRouter.lastUsedProvider || 'unknown', stage: 'LLM_SYNTHESIS' };
     let llmFailed = false;
-    
-    // Validations & Roadmap
     let claimsValidation: any = { validations: [], roadmap: [], audit_warnings: [], audit_trail: [] };
 
-    try {
-      analysis = await llmRouter.analyzeEvidence(engine.getEvidence(), evidenceGraph);
-      llmStatus.provider = llmRouter.lastUsedProvider;
-      
-      if (body.claims && body.claims.length > 0) {
-         currentStage = 'AUTONOMOUS_VALIDATION';
-         const valOrch = new ValidationOrchestrator(engine, descriptor.local_path);
-         claimsValidation = await valOrch.orchestrate(body.claims, evidenceGraphObj, llmRouter);
-      }
-    } catch (llmError: any) {
-      console.error(`[${analysisId}] Gemini synthesis failed:`, llmError);
+    if (body.analysis_options?.skip_llm) {
+      plog(analysisId, 'LLM reasoning skipped by policy');
       llmFailed = true;
       llmStatus = {
         status: 'UNAVAILABLE',
         provider: 'none',
         stage: 'LLM_SYNTHESIS',
+        error_code: 'SERVICE_UNAVAILABLE',
         retryable: false
       };
-      
-      const errMsg = llmError.message || '';
-      if (errMsg.includes('429') || errMsg.includes('QUOTA') || errMsg.includes('Quota exceeded') || errMsg.includes('RESOURCE_EXHAUSTED')) {
-        llmStatus.error_code = 'QUOTA_EXCEEDED';
-        llmStatus.retryable = true;
-      } else if (errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('UNAVAILABLE') || errMsg.includes('rate-limits')) {
-        llmStatus.error_code = 'SERVICE_UNAVAILABLE';
-        llmStatus.retryable = true;
-      } else if (llmError instanceof z.ZodError || errMsg.includes('Unexpected token') || errMsg.includes('JSON')) {
-        llmStatus.error_code = 'INVALID_RESPONSE';
-      } else if (errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('API_KEY_INVALID')) {
-        llmStatus.error_code = 'AUTHENTICATION_FAILED';
-      } else {
-        llmStatus.error_code = 'UNKNOWN';
-      }
+    } else {
+      tracker.enterStage('LLM_SYNTHESIS');
+      plog(analysisId, 'Sending to LLM for reasoning...');
 
-      // If we failed, fallback validations
-      if (body.claims && body.claims.length > 0) {
-         currentStage = 'AUTONOMOUS_VALIDATION';
-         const valOrch = new ValidationOrchestrator(engine, descriptor.local_path);
-         claimsValidation = await valOrch.orchestrate(body.claims, evidenceGraphObj, llmRouter);
+      try {
+        analysis = await llmRouter.analyzeEvidence(engine.getEvidence(), evidenceGraph);
+        llmStatus.provider = llmRouter.lastUsedProvider;
+        tracker.setLlmInfo(llmRouter.lastUsedProvider);
+
+        if (body.claims && body.claims.length > 0) {
+          tracker.enterStage('AUTONOMOUS_VALIDATION');
+          plog(analysisId, 'Autonomous validation...');
+          const valOrch = new ValidationOrchestrator(engine, descriptor.local_path, body.analysis_options?.skip_execution);
+          claimsValidation = await valOrch.orchestrate(body.claims, evidenceGraphObj, llmRouter);
+        }
+      } catch (llmError: any) {
+        perr(analysisId, 'LLM synthesis failed', llmError);
+        llmFailed = true;
+
+        const llmClass = classifyLlmError(llmError);
+        llmStatus = {
+          status: 'UNAVAILABLE',
+          provider: 'none',
+          stage: 'LLM_SYNTHESIS',
+          error_code: llmClass.error_code,
+          retryable: llmClass.retryable
+        };
+
+        // If we failed LLM, still run validation with deterministic evidence
+        if (body.claims && body.claims.length > 0) {
+          tracker.enterStage('AUTONOMOUS_VALIDATION');
+          plog(analysisId, 'Autonomous validation (LLM degraded)...');
+          const valOrch = new ValidationOrchestrator(engine, descriptor.local_path, body.analysis_options?.skip_execution);
+          claimsValidation = await valOrch.orchestrate(body.claims, evidenceGraphObj, llmRouter);
+        }
       }
     }
 
-    // 7. Generate Report
-    currentStage = 'REPORT_GENERATED';
-    console.log(`[${analysisId}] Generating report...`);
-    
+    // Record validation action IDs
+    if (claimsValidation.audit_trail) {
+      for (const action of claimsValidation.audit_trail) {
+        if (action.decision_id) tracker.addValidationActionId(action.decision_id);
+      }
+    }
+
+    // 8. Generate Report
+    tracker.enterStage('REPORT_AUDITED');
+    plog(analysisId, 'Generating report...');
+
+    const analysisStartTime = tracker.getMetadata().started_at;
     const warnings = [...(analysis.warnings || []), ...(claimsValidation.audit_warnings || [])];
 
-    // We keep deterministic facts
     const report: ProjectReport = {
       schema_version: "1.0",
       analysis_run_id: analysisId,
       project: {
-        id: `PROJ-${crypto.randomUUID().substring(0,8)}`,
+        id: body.project_id || `PROJ-${crypto.createHash('sha256').update(body.repository_url).digest('hex').substring(0, 8)}`,
         name: body.repository_url.split('/').pop() || 'unknown',
         repository_url: descriptor.repository_url,
         repository_commit: descriptor.commit_sha || 'unknown',
@@ -157,11 +251,11 @@ router.post('/analyze', async (req: Request, res: Response) => {
         features: analysis.features || []
       },
       analysis: {
-        started_at: new Date().toISOString(),
+        started_at: analysisStartTime,
         completed_at: new Date().toISOString(),
-        duration_ms: 0,
+        duration_ms: Date.now() - new Date(analysisStartTime).getTime(),
         status: llmFailed ? "INSUFFICIENT_EVIDENCE" : "COMPLETED",
-        stages: []
+        stages: tracker.getCompletedStageNames() as AnalysisStage[]
       },
       summary: body.claims && body.claims.length > 0 ? ValidationEngine.calculateSummary(claimsValidation.validations) : {
         claims_total: 0,
@@ -179,10 +273,11 @@ router.post('/analyze', async (req: Request, res: Response) => {
       diagnostics: {
         warnings: warnings,
         errors: [],
-        execution_failures: executionResult?.telemetry?.phases.filter(p => p.status === 'FAILED').map(p => p.stderr || p.stdout || '') || [],
+        execution_failures: executionResult?.telemetry?.phases.filter((p: any) => p.status === 'FAILED').map((p: any) => p.stderr || p.stdout || '') || [],
         provider_failures: llmFailed ? [llmStatus.error_code] : [],
         unsupported_features: []
       },
+      analysis_metadata: tracker.complete(),
       llm: llmStatus,
       execution: {
         supported: true,
@@ -190,13 +285,14 @@ router.post('/analyze', async (req: Request, res: Response) => {
       }
     };
 
-    currentStage = 'CLEANUP';
+    // 9. Cleanup
+    tracker.enterStage('COMPLETED');
     if (descriptor) {
-      console.log(`[${analysisId}] Cleaning up workspace...`);
+      plog(analysisId, 'Cleaning up workspace...');
       await GithubFetcher.cleanup(descriptor);
     }
-    
-    currentStage = 'COMPLETED';
+
+    plog(analysisId, 'Analysis completed');
     res.status(200).json({
       analysis_id: analysisId,
       status: "COMPLETED",
@@ -204,28 +300,29 @@ router.post('/analyze', async (req: Request, res: Response) => {
     });
 
   } catch (error: any) {
-    console.error(`[${analysisId}] Error at stage ${currentStage}:`, error);
-    
+    const stage = tracker.currentStage || 'INITIALIZED';
+    tracker.failStage(error?.message || 'Unknown error');
+    perr(analysisId, `Error at stage ${stage}`, error);
+
     if (descriptor) {
        await GithubFetcher.cleanup(descriptor).catch(() => {});
     }
 
     if (error instanceof z.ZodError) {
-      return res.status(400).json({
-        error: {
-          code: "VALIDATION_FAILED",
-          message: (error as any).errors,
-          stage: currentStage
-        }
-      });
+      const analysisError: AnalysisError = {
+        code: 'INVALID_REQUEST',
+        message: 'Request validation failed',
+        stage: String(stage),
+        retryable: false,
+        details: (error as any).errors.map((e: any) => `${e.path.join('.')}: ${e.message}`)
+      };
+      return res.status(400).json({ error: analysisError });
     }
 
+    const analysisError = classifyError(error, String(stage));
     res.status(500).json({
-      error: {
-        code: "ANALYSIS_FAILED",
-        message: error.message || "An unexpected error occurred",
-        stage: currentStage
-      }
+      error: analysisError,
+      analysis_metadata: tracker.complete()
     });
   }
 });

@@ -3,6 +3,11 @@ import { LLMProvider, LLMAnalysisResult, LLMValidationResult, LLMAnalysisSchema,
 
 export class OpenRouterProvider implements LLMProvider {
   public readonly name = 'openrouter';
+  private timeoutMs: number;
+
+  constructor(timeoutMs: number = 30000) {
+    this.timeoutMs = timeoutMs;
+  }
 
   public async analyzeEvidence(evidenceStore: Evidence[]): Promise<LLMAnalysisResult> {
     const apiKey = process.env.OPENROUTER_API_KEY;
@@ -32,18 +37,31 @@ Evidence:
 ${evidenceJson}
 `;
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "openrouter/free",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" }
-      })
-    });
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => abortController.abort(), this.timeoutMs);
+
+    let response;
+    try {
+      response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "openrouter/free",
+          messages: [{ role: "user", content: prompt }],
+          response_format: { type: "json_object" }
+        }),
+        signal: abortController.signal
+      });
+      clearTimeout(timeoutId);
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        throw new Error(`OpenRouter request timed out after ${this.timeoutMs}ms`);
+      }
+      throw err;
+    }
     
     if (!response.ok) throw new Error(`OpenRouter failed with status ${response.status}`);
     const data = await response.json();
@@ -109,18 +127,31 @@ Packages (Each contains the claim, bounded subgraph, and relevant evidence):
 ${packagesJson}
 `;
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "openrouter/free",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" }
-      })
-    });
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => abortController.abort(), this.timeoutMs);
+
+    let response;
+    try {
+      response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "openrouter/free",
+          messages: [{ role: "user", content: prompt }],
+          response_format: { type: "json_object" }
+        }),
+        signal: abortController.signal
+      });
+      clearTimeout(timeoutId);
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        throw new Error(`OpenRouter request timed out after ${this.timeoutMs}ms`);
+      }
+      throw err;
+    }
     
     if (!response.ok) throw new Error(`OpenRouter failed with status ${response.status}`);
     const data = await response.json();

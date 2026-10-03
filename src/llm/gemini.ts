@@ -6,10 +6,13 @@ export class GeminiProvider implements LLMProvider {
   public readonly name = 'gemini';
   private ai: GoogleGenAI;
 
-  constructor() {
+  private timeoutMs: number;
+
+  constructor(timeoutMs: number = 30000) {
     if (!process.env.GEMINI_API_KEY) {
       throw new Error('GEMINI_API_KEY environment variable is missing');
     }
+    this.timeoutMs = timeoutMs;
     this.ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   }
 
@@ -38,13 +41,25 @@ Evidence:
 ${evidenceJson}
 `;
 
-    const response = await this.ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json"
+    let response;
+    try {
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => abortController.abort(), this.timeoutMs);
+      
+      response = await this.ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json"
+        }
+      });
+      clearTimeout(timeoutId);
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        throw new Error(`Gemini request timed out after ${this.timeoutMs}ms`);
       }
-    });
+      throw err;
+    }
 
     if (!response.text) {
       throw new Error('Gemini returned empty response');
@@ -106,13 +121,25 @@ Packages (Each contains the claim, bounded subgraph, and relevant evidence):
 ${packagesJson}
 `;
 
-    const response = await this.ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json"
+    let response;
+    try {
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => abortController.abort(), this.timeoutMs);
+      
+      response = await this.ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json"
+        }
+      });
+      clearTimeout(timeoutId);
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        throw new Error(`Gemini request timed out after ${this.timeoutMs}ms`);
       }
-    });
+      throw err;
+    }
 
     if (!response.text) {
       throw new Error('Gemini returned empty response');

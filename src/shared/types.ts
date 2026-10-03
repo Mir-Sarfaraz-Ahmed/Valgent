@@ -6,9 +6,38 @@ export interface RepositoryDescriptor {
   fetched_at: string;
 }
 
+export interface AnalysisOptions {
+  /** Whether to skip LLM reasoning (use only deterministic evidence) */
+  skip_llm?: boolean;
+  /** Whether to skip dynamic analysis (sandbox execution) */
+  skip_execution?: boolean;
+  /** Maximum total analysis time in milliseconds */
+  timeout_ms?: number;
+}
+
+export interface ExecutionPolicyRequest {
+  allow_install?: boolean;
+  allow_build?: boolean;
+  allow_tests?: boolean;
+  timeout_ms?: number;
+  memory_limit_mb?: number;
+}
+
+export interface LlmPolicyRequest {
+  /** Preferred provider order, e.g. ['gemini', 'openrouter'] */
+  preferred_providers?: LLMProviderName[];
+  /** Maximum LLM request timeout in ms */
+  timeout_ms?: number;
+}
+
 export interface AnalysisRequest {
   repository_url: string;
   commit_sha?: string;
+  project_id?: string;
+  claims?: Claim[];
+  analysis_options?: AnalysisOptions;
+  execution_policy?: ExecutionPolicyRequest;
+  llm_policy?: LlmPolicyRequest;
 }
 
 export type EvidenceClassification = 'IMPLEMENTATION' | 'EXECUTION' | 'TEST' | 'CONFIGURATION' | 'DOCUMENTATION' | 'DEPENDENCY' | 'RUNTIME' | 'UNCLASSIFIED';
@@ -120,16 +149,22 @@ export type AnalysisStage =
   | 'INITIALIZED'
   | 'INGESTING'
   | 'PROJECT_MAPPED'
+  | 'CLAIMS_EXTRACTED'
   | 'ENVIRONMENT_RESOLVED'
   | 'STATIC_ANALYSIS'
   | 'EXECUTION_PLANNING'
   | 'DYNAMIC_ANALYSIS'
   | 'EVIDENCE_BUILT'
   | 'AUTONOMOUS_VALIDATION'
+  | 'CLAIMS_VALIDATED'
+  | 'GAPS_IDENTIFIED'
+  | 'ROADMAP_GENERATED'
+  | 'REPORT_AUDITED'
   | 'LLM_SYNTHESIS'
   | 'REPORT_GENERATED'
   | 'CLEANUP'
-  | 'COMPLETED';
+  | 'COMPLETED'
+  | 'ANALYSIS_FAILED';
 
 export type ValidationStatus = 'VERIFIED' | 'PARTIALLY_VERIFIED' | 'NOT_VERIFIED' | 'INSUFFICIENT_EVIDENCE';
 
@@ -231,6 +266,30 @@ export interface ProjectReport {
     execution_failures: string[];
     provider_failures: string[];
     unsupported_features: string[];
+  };
+
+  // V1.0-A: Analysis metadata for traceability
+  analysis_metadata?: {
+    analysis_id: string;
+    repository_url: string;
+    commit_ref?: string;
+    started_at: string;
+    completed_at?: string;
+    duration_ms?: number;
+    stages: Array<{
+      stage: string;
+      started_at: string;
+      completed_at?: string;
+      duration_ms?: number;
+      status: string;
+      error?: string;
+    }>;
+    execution_ids: string[];
+    evidence_ids: string[];
+    validation_action_ids: string[];
+    llm_provider?: string;
+    llm_model?: string;
+    final_status: string;
   };
 
   // Legacy fields for backward compatibility

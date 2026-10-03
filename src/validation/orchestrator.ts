@@ -13,7 +13,7 @@ import * as crypto from 'crypto';
 export class ValidationOrchestrator {
   private executedActions = new Set<string>();
   
-  constructor(private engine: EvidenceEngine, private localPath: string) {}
+  constructor(private engine: EvidenceEngine, private localPath: string, private skipExecution: boolean = false) {}
   
   public async orchestrate(
     claims: Claim[],
@@ -113,6 +113,20 @@ export class ValidationOrchestrator {
         const newEvIds: string[] = [];
         
         if (safety.command) {
+            if (this.skipExecution) {
+               audit_trail.push({
+                 decision_id: crypto.randomUUID(),
+                 claim_id: claim.claim_id,
+                 candidate_actions: candidates,
+                 selected_action: selectedAction,
+                 selection_reason: 'Execution skipped per request options',
+                 safety_decision: 'REJECTED',
+                 result: 'ACTION_NOT_ATTEMPTED',
+                 new_evidence: []
+               });
+               break;
+            }
+
             const sandbox = new DockerSandbox(this.localPath);
             const executionId = `EXE-${crypto.randomUUID()}`;
             const runRes = await sandbox.runCommand(safety.command, safety.sandboxOptions);
