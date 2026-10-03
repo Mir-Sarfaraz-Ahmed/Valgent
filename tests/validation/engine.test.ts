@@ -105,13 +105,13 @@ describe('Validation Engine & Auditor', () => {
     });
 
     const result = await ValidationEngine.validate(claims, mockEvidence, mockRouter);
-    
+
     // Claim 1
     expect(result.validations.find(v => v.claim_id === 'CLM-001')?.status).toBe('VERIFIED');
-    
+
     // Claim 2
     expect(result.validations.find(v => v.claim_id === 'CLM-002')?.status).toBe('PARTIALLY_VERIFIED');
-    
+
     // Claim 3
     expect(result.validations.find(v => v.claim_id === 'CLM-003')?.status).toBe('NOT_VERIFIED');
 
@@ -133,14 +133,14 @@ describe('Validation Engine & Auditor', () => {
 
   it('2. Should handle provider failure and fallback to INSUFFICIENT_EVIDENCE for all', async () => {
     jest.spyOn(mockRouter, 'validateClaims').mockRejectedValue(new Error('503 Unavailable'));
-    
+
     const result = await ValidationEngine.validate(claims, mockEvidence, mockRouter);
-    
+
     expect(result.validations.length).toBe(5);
     result.validations.forEach(v => {
       expect(v.status).toBe('INSUFFICIENT_EVIDENCE');
     });
     expect(result.roadmap.length).toBe(0);
-    expect(result.audit_warnings).toContain('Provider validation failed, defaulting to INSUFFICIENT_EVIDENCE');
+    expect(result.audit_warnings).toContain('Provider validation failed, defaulted to deterministic analysis');
   });
 });

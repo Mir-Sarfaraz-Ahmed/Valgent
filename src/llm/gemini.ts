@@ -16,6 +16,24 @@ export class GeminiProvider implements LLMProvider {
     this.ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   }
 
+  private createConfig(abortController: AbortController) {
+    return {
+      responseMimeType: "application/json",
+      httpOptions: {
+        fetch: async (url: RequestInfo | URL, opts: any) => {
+          const response = await fetch(url, { ...opts, signal: abortController.signal });
+          if (response.status === 429) {
+            throw new Error('Gemini API 429: Too Many Requests (Quota/Rate Limit Exceeded)');
+          }
+          if (response.status >= 500) {
+            throw new Error(`Gemini API ${response.status}: Provider Error`);
+          }
+          return response;
+        }
+      }
+    };
+  }
+
   public async analyzeEvidence(evidenceStore: Evidence[]): Promise<LLMAnalysisResult> {
     const evidenceJson = JSON.stringify(evidenceStore, null, 2);
     const prompt = `
@@ -45,13 +63,11 @@ ${evidenceJson}
     try {
       const abortController = new AbortController();
       const timeoutId = setTimeout(() => abortController.abort(), this.timeoutMs);
-      
+
       response = await this.ai.models.generateContent({
         model: 'gemini-3.8-flash',
         contents: prompt,
-        config: {
-          responseMimeType: "application/json"
-        }
+        config: this.createConfig(abortController)
       });
       clearTimeout(timeoutId);
     } catch (err: any) {
@@ -70,8 +86,25 @@ ${evidenceJson}
   }
 
   public async validateClaims(packages: ClaimValidationPackage[]): Promise<LLMValidationResult> {
-    const packagesJson = JSON.stringify(packages, null, 2);
-    
+
+    let packagesText = '';
+    packages.forEach((pkg, i) => {
+      packagesText += `\n==================================================\nPACKAGE ${i + 1}\n==================================================\n`;
+      packagesText += `CLAIM_ID: ${pkg.claim.claim_id}\n`;
+      packagesText += `CLAIM_TEXT: ${pkg.claim.text}\n\n`;
+
+      packagesText += `AUTHORITATIVE EVIDENCE\n----------------------\n`;
+      packagesText += JSON.stringify({ subgraph: pkg.subgraph, evidence: pkg.evidence }, null, 2) + '\n\n';
+
+      if (pkg.context) {
+        packagesText += `SUPPLEMENTAL REPOSITORY CONTEXT\n-------------------------------\n`;
+        packagesText += `Supplemental repository context helps interpret implementation.\nIt is not itself an authoritative validation result.\n\n`;
+        pkg.context.selectedFiles.forEach((file: any) => {
+           packagesText += `File:\n${file.path}\n\n${file.content}\n\n`;
+        });
+      }
+    });
+
     const prompt = `
 You are Valgent, an AI-powered Build & Validation Agent.
 Your task is to validate a list of builder claims against their deterministic evidence packages.
@@ -117,21 +150,19 @@ Your response MUST be ONLY valid JSON matching this schema:
   ]
 }
 
-Packages (Each contains the claim, bounded subgraph, and relevant evidence):
-${packagesJson}
+Packages (Each contains the claim, bounded subgraph, relevant evidence, and supplemental context):
+${packagesText}
 `;
 
     let response;
     try {
       const abortController = new AbortController();
       const timeoutId = setTimeout(() => abortController.abort(), this.timeoutMs);
-      
+
       response = await this.ai.models.generateContent({
         model: 'gemini-3.8-flash',
         contents: prompt,
-        config: {
-          responseMimeType: "application/json"
-        }
+        config: this.createConfig(abortController)
       });
       clearTimeout(timeoutId);
     } catch (err: any) {

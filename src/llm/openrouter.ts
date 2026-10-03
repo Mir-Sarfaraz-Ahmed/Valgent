@@ -12,7 +12,7 @@ export class OpenRouterProvider implements LLMProvider {
   public async analyzeEvidence(evidenceStore: Evidence[]): Promise<LLMAnalysisResult> {
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) throw new Error('OPENROUTER_API_KEY is missing');
-    
+
     const evidenceJson = JSON.stringify(evidenceStore, null, 2);
     const prompt = `
 You are Valgent, an AI-powered Build & Validation Agent.
@@ -62,12 +62,12 @@ ${evidenceJson}
       }
       throw err;
     }
-    
+
     if (!response.ok) throw new Error(`OpenRouter failed with status ${response.status}`);
     const data = await response.json();
     const text = data.choices?.[0]?.message?.content;
     if (!text) throw new Error('OpenRouter returned empty response');
-    
+
     const parsed = JSON.parse(text);
     return LLMAnalysisSchema.parse(parsed);
   }
@@ -75,9 +75,25 @@ ${evidenceJson}
   public async validateClaims(packages: ClaimValidationPackage[]): Promise<LLMValidationResult> {
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) throw new Error('OPENROUTER_API_KEY is missing');
-    
-    const packagesJson = JSON.stringify(packages, null, 2);
-    
+
+    let packagesText = '';
+    packages.forEach((pkg, i) => {
+      packagesText += `\n==================================================\nPACKAGE ${i + 1}\n==================================================\n`;
+      packagesText += `CLAIM_ID: ${pkg.claim.claim_id}\n`;
+      packagesText += `CLAIM_TEXT: ${pkg.claim.text}\n\n`;
+
+      packagesText += `AUTHORITATIVE EVIDENCE\n----------------------\n`;
+      packagesText += JSON.stringify({ subgraph: pkg.subgraph, evidence: pkg.evidence }, null, 2) + '\n\n';
+
+      if (pkg.context) {
+        packagesText += `SUPPLEMENTAL REPOSITORY CONTEXT\n-------------------------------\n`;
+        packagesText += `Supplemental repository context helps interpret implementation.\nIt is not itself an authoritative validation result.\n\n`;
+        pkg.context.selectedFiles.forEach((file: any) => {
+           packagesText += `File:\n${file.path}\n\n${file.content}\n\n`;
+        });
+      }
+    });
+
     const prompt = `
 You are Valgent, an AI-powered Build & Validation Agent.
 Your task is to validate a list of builder claims against their deterministic evidence packages.
@@ -123,8 +139,8 @@ Your response MUST be ONLY valid JSON matching this schema:
   ]
 }
 
-Packages (Each contains the claim, bounded subgraph, and relevant evidence):
-${packagesJson}
+Packages (Each contains the claim, bounded subgraph, relevant evidence, and supplemental context):
+${packagesText}
 `;
 
     const abortController = new AbortController();
@@ -152,12 +168,12 @@ ${packagesJson}
       }
       throw err;
     }
-    
+
     if (!response.ok) throw new Error(`OpenRouter failed with status ${response.status}`);
     const data = await response.json();
     const text = data.choices?.[0]?.message?.content;
     if (!text) throw new Error('OpenRouter returned empty response');
-    
+
     const parsed = JSON.parse(text);
     return LLMValidationSchema.parse(parsed);
   }

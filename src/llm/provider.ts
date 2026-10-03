@@ -49,6 +49,7 @@ export interface ClaimValidationPackage {
   requirement_id?: string;
   subgraph: EvidenceGraphData;
   evidence: Evidence[];
+  context?: any; // SelectionResult from context selector
 }
 
 export interface LLMProvider {

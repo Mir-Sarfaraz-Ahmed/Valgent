@@ -9,41 +9,43 @@ import { DockerSandbox } from '../sandbox/docker';
 import { EvidenceEngine } from '../evidence/engine';
 import { ValidationEngine } from './engine';
 import * as crypto from 'crypto';
+import { ContextDigest } from '../context';
 
 export class ValidationOrchestrator {
   private executedActions = new Set<string>();
-  
+
   constructor(private engine: EvidenceEngine, private localPath: string, private skipExecution: boolean = false) {}
-  
+
   public async orchestrate(
     claims: Claim[],
     graph: EvidenceGraph,
-    provider: LLMProvider
+    provider: LLMProvider,
+    digest?: ContextDigest
   ): Promise<{ validations: ValidationResult[], audit_warnings: string[], audit_trail: ActionDecisionRecord[], roadmap: RemediationTask[] }> {
     const audit_trail: ActionDecisionRecord[] = [];
     const MAX_ACTIONS_PER_CLAIM = 3;
     const query = new EvidenceGraphQuery(graph);
-    
+
     let cachedBuildStatus = 'NOT_ATTEMPTED';
-    
+
     for (const claim of claims) {
       let actionsTaken = 0;
       let claimVerified = false;
-      
+
       while (actionsTaken < MAX_ACTIONS_PER_CLAIM && !claimVerified) {
         const sub = query.getClaimSubgraph(claim.claim_id, { maxDepth: 10, maxNodes: 100 });
-        
+
         const reqId = graph.getNodesByType('requirement').find(n => n.metadata?.claim_id === claim.claim_id)?.id;
         const relEvidence = this.engine.getEvidence().filter(e => sub.nodes.some(n => n.id === e.evidence_id) || sub.edges.some(edge => edge.evidence_refs?.includes(e.evidence_id)));
         const evaluation = ClaimEvidenceEvaluator.evaluate(claim, reqId, sub as any, relEvidence);
-        
+
         if (evaluation.evidence_sufficiency === 'SUFFICIENT') {
            claimVerified = true;
            break;
         }
-        
+
         const candidates = ValidationPlanner.plan(claim, reqId || '', sub as any, evaluation);
-        
+
         if (candidates.length === 0) {
            audit_trail.push({
              decision_id: crypto.randomUUID(),
@@ -54,9 +56,9 @@ export class ValidationOrchestrator {
              result: 'ACTION_NOT_SELECTED',
              new_evidence: []
            });
-           break; 
+           break;
         }
-        
+
         let selectedAction: ValidationAction | undefined = undefined;
         for (const c of candidates) {
             const dedupeKey = `${c.type}:${c.target || ''}`;
@@ -66,7 +68,7 @@ export class ValidationOrchestrator {
                 break;
             }
         }
-        
+
         if (!selectedAction) {
            audit_trail.push({
              decision_id: crypto.randomUUID(),
@@ -93,7 +95,7 @@ export class ValidationOrchestrator {
            });
            continue;
         }
-        
+
         const safety = ValidationSafetyPolicy.evaluate(selectedAction);
         if (safety.status === 'REJECTED') {
            audit_trail.push({
@@ -108,10 +110,10 @@ export class ValidationOrchestrator {
            });
            break;
         }
-        
+
         let resultStatus: 'ACTION_FAILED' | 'ACTION_SUCCEEDED' = 'ACTION_FAILED';
         const newEvIds: string[] = [];
-        
+
         if (safety.command) {
             if (this.skipExecution) {
                audit_trail.push({
@@ -130,10 +132,10 @@ export class ValidationOrchestrator {
             const sandbox = new DockerSandbox(this.localPath);
             const executionId = `EXE-${crypto.randomUUID()}`;
             const runRes = await sandbox.runCommand(safety.command, safety.sandboxOptions);
-            
+
             resultStatus = runRes.exit_code === 0 ? 'ACTION_SUCCEEDED' : 'ACTION_FAILED';
             if (selectedAction.type === 'BUILD') cachedBuildStatus = resultStatus === 'ACTION_SUCCEEDED' ? 'PASSED' : 'FAILED';
-            
+
             const evType = selectedAction.type === 'BUILD' ? 'BUILD_RESULT' : (selectedAction.type === 'STATIC_INSPECTION' ? 'SOURCE_CODE' : 'TEST_RESULT');
             const ev = this.engine.addEvidence(
                evType as any,
@@ -144,12 +146,12 @@ export class ValidationOrchestrator {
                undefined, undefined,
                { execution_id: executionId, exit_code: runRes.exit_code, phase: selectedAction.type }
             );
-            
+
             newEvIds.push(ev.evidence_id);
             graph.addNode({ id: ev.evidence_id, type: 'evidence', label: ev.evidence_id, metadata: { classification: ev.classification } });
             graph.addEdge({ edge_id: `E-${crypto.randomUUID()}`, from: claim.claim_id, to: ev.evidence_id, type: 'CLAIM_REQUIRES', confidence: 1, evidence_refs: [] });
         }
-        
+
         const subAfter = query.getClaimSubgraph(claim.claim_id, { maxDepth: 10, maxNodes: 100 });
         const relEvidenceAfter = this.engine.getEvidence().filter(e => subAfter.nodes.some(n => n.id === e.evidence_id) || subAfter.edges.some(edge => edge.evidence_refs?.includes(e.evidence_id)));
         const evaluationAfter = ClaimEvidenceEvaluator.evaluate(claim, reqId, subAfter as any, relEvidenceAfter);
@@ -172,12 +174,11 @@ export class ValidationOrchestrator {
              new_evidence: newEvIds,
              re_evaluation_result: reEvalStatus
         });
-        
+
         actionsTaken++;
       }
     }
-    
-    const { validations, audit_warnings, roadmap } = await ValidationEngine.validate(claims, this.engine.getEvidence(), provider, graph);
+    const { validations, audit_warnings, roadmap } = await ValidationEngine.validate(claims, this.engine.getEvidence(), provider, graph, digest);
     return { validations, audit_warnings, audit_trail, roadmap };
   }
 }

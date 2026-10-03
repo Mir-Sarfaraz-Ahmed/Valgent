@@ -15,6 +15,7 @@ import { ValidationOrchestrator } from '../validation/orchestrator';
 import { ProjectReport, AnalysisStage } from '../shared/types';
 import { PipelineTracker } from '../shared/pipeline';
 import { redactSecrets, classifyLlmError, classifyError, AnalysisError } from '../shared/errors';
+import { ContextDigester } from '../context/digest';
 
 const router = Router();
 
@@ -160,7 +161,46 @@ router.post('/analyze', async (req: Request, res: Response) => {
       tracker.addEvidenceId(ev.evidence_id);
     }
 
-    // 7. LLM Reasoning
+    // Generate Context Digest
+    plog(analysisId, 'Generating repository context digest...');
+    const contextDigest = ContextDigester.generate({
+      repoPath: descriptor.local_path,
+      maxFileSize: 50 * 1024, // 50KB max per file
+      ignorePatterns: []
+    });
+
+    // 7. AUTONOMOUS_VALIDATION
+    let claimsValidation: any = { validations: [], roadmap: [], audit_warnings: [], audit_trail: [] };
+
+    // We create a disabled provider for skip_llm so that the ValidationEngine degrades gracefully
+    const effectiveLlmRouter = body.analysis_options?.skip_llm ?
+      {
+        name: 'disabled',
+        analyzeEvidence: async () => { throw new Error('LLM skipped by policy'); },
+        validateClaims: async () => { throw new Error('LLM skipped by policy'); }
+      } : llmRouter;
+
+    if (body.claims && body.claims.length > 0) {
+      tracker.enterStage('AUTONOMOUS_VALIDATION');
+      plog(analysisId, body.analysis_options?.skip_llm ? 'Autonomous validation (LLM skipped)...' : 'Autonomous validation...');
+      const valOrch = new ValidationOrchestrator(engine, descriptor.local_path, body.analysis_options?.skip_execution);
+
+      try {
+        claimsValidation = await valOrch.orchestrate(body.claims, evidenceGraphObj, effectiveLlmRouter as any, contextDigest);
+      } catch (err: any) {
+        perr(analysisId, 'Autonomous validation failed', err);
+        claimsValidation.audit_warnings.push({ message: err.message });
+      }
+    }
+
+    // Record validation action IDs
+    if (claimsValidation.audit_trail) {
+      for (const action of claimsValidation.audit_trail) {
+        if (action.decision_id) tracker.addValidationActionId(action.decision_id);
+      }
+    }
+
+    // 8. LLM_SYNTHESIS
     let analysis: any = {
       architecture: { components: [], entry_points: [], api_routes: [], databases: [] },
       features: [],
@@ -168,7 +208,6 @@ router.post('/analyze', async (req: Request, res: Response) => {
     };
     let llmStatus: any = { status: 'SUCCESS', provider: llmRouter.lastUsedProvider || 'unknown', stage: 'LLM_SYNTHESIS' };
     let llmFailed = false;
-    let claimsValidation: any = { validations: [], roadmap: [], audit_warnings: [], audit_trail: [] };
 
     if (body.analysis_options?.skip_llm) {
       plog(analysisId, 'LLM reasoning skipped by policy');
@@ -185,16 +224,10 @@ router.post('/analyze', async (req: Request, res: Response) => {
       plog(analysisId, 'Sending to LLM for reasoning...');
 
       try {
-        analysis = await llmRouter.analyzeEvidence(engine.getEvidence(), evidenceGraph);
+        // Use updated evidence (execution may have added some) and evidence graph
+        analysis = await llmRouter.analyzeEvidence(engine.getEvidence(), evidenceGraphObj.serialize());
         llmStatus.provider = llmRouter.lastUsedProvider;
         tracker.setLlmInfo(llmRouter.lastUsedProvider);
-
-        if (body.claims && body.claims.length > 0) {
-          tracker.enterStage('AUTONOMOUS_VALIDATION');
-          plog(analysisId, 'Autonomous validation...');
-          const valOrch = new ValidationOrchestrator(engine, descriptor.local_path, body.analysis_options?.skip_execution);
-          claimsValidation = await valOrch.orchestrate(body.claims, evidenceGraphObj, llmRouter);
-        }
       } catch (llmError: any) {
         perr(analysisId, 'LLM synthesis failed', llmError);
         llmFailed = true;
@@ -207,21 +240,6 @@ router.post('/analyze', async (req: Request, res: Response) => {
           error_code: llmClass.error_code,
           retryable: llmClass.retryable
         };
-
-        // If we failed LLM, still run validation with deterministic evidence
-        if (body.claims && body.claims.length > 0) {
-          tracker.enterStage('AUTONOMOUS_VALIDATION');
-          plog(analysisId, 'Autonomous validation (LLM degraded)...');
-          const valOrch = new ValidationOrchestrator(engine, descriptor.local_path, body.analysis_options?.skip_execution);
-          claimsValidation = await valOrch.orchestrate(body.claims, evidenceGraphObj, llmRouter);
-        }
-      }
-    }
-
-    // Record validation action IDs
-    if (claimsValidation.audit_trail) {
-      for (const action of claimsValidation.audit_trail) {
-        if (action.decision_id) tracker.addValidationActionId(action.decision_id);
       }
     }
 
@@ -240,6 +258,11 @@ router.post('/analyze', async (req: Request, res: Response) => {
         name: body.repository_url.split('/').pop() || 'unknown',
         repository_url: descriptor.repository_url,
         repository_commit: descriptor.commit_sha || 'unknown',
+        context_metrics: {
+           total_files: contextDigest.summary.totalFiles,
+           eligible_files: contextDigest.summary.eligibleFiles,
+           estimated_tokens: contextDigest.summary.estimatedTokens
+        },
         package_manager: (map.packageManagers && map.packageManagers.length > 0) ? map.packageManagers[0] : 'unknown',
         architecture: {
           components: analysis.architecture?.components || [],

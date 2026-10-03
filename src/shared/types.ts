@@ -145,7 +145,7 @@ export interface ExecutionReportOperation {
   status: string;
 }
 
-export type AnalysisStage = 
+export type AnalysisStage =
   | 'INITIALIZED'
   | 'INGESTING'
   | 'PROJECT_MAPPED'
@@ -216,6 +216,11 @@ export interface ProjectReport {
     name: string;
     repository_url?: string;
     repository_commit?: string;
+    context_metrics?: {
+      total_files: number;
+      eligible_files: number;
+      estimated_tokens: number;
+    };
     package_manager?: string;
     runtime?: string;
     architecture?: {
@@ -248,7 +253,7 @@ export interface ProjectReport {
   requirements: ValidationResult[];
 
   evidence: Evidence[];
-  
+
   evidence_graph?: {
     graph_version: string;
     nodes: any[];
@@ -317,7 +322,7 @@ export interface ValidationAction {
   prerequisites: string[];
 }
 
-export type ActionExecutionStatus = 
+export type ActionExecutionStatus =
   | 'ACTION_NOT_SELECTED'
   | 'ACTION_NOT_ATTEMPTED'
   | 'ACTION_REJECTED'
