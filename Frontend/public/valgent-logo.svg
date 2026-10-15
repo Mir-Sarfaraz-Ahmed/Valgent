@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <defs>
+    <linearGradient id="valgent-grad" x1="10%" y1="0%" x2="90%" y2="100%">
+      <stop offset="0%" stop-color="#FB9590" />
+      <stop offset="50%" stop-color="#DC586D" />
+      <stop offset="100%" stop-color="#852E4E" />
+    </linearGradient>
+  </defs>
+  <rect width="100" height="100" rx="24" fill="#4C1D3D"/>
+  <path d="M26 30 L45 74 C47 78 53 78 55 74 L74 30" stroke="url(#valgent-grad)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="74" cy="30" r="6" fill="#FFBB94" />
+</svg>
