@@ -296,7 +296,7 @@ export const ProfilePage: React.FC = () => {
               size="sm"
               onClick={handleSave}
               disabled={isSaving}
-              className="inline-flex items-center gap-1.5"
+              className="inline-flex items-center gap-1.5 flex-shrink-0 shadow-sm"
             >
               {isSaving ? (
                 <>
@@ -310,6 +310,8 @@ export const ProfilePage: React.FC = () => {
                 </>
               )}
             </Button>
+
+            <div className="hidden sm:block h-5 w-[1px] bg-[var(--border-soft)] flex-shrink-0" />
 
             <HeaderActionDock />
           </div>
