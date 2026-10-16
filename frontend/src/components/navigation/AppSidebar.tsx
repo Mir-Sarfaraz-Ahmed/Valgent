@@ -329,7 +329,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
             }
           }}
           onMouseEnter={handleMouseEnter}
-          className={`hidden lg:flex fixed top-24 left-0 z-40 items-center justify-center py-2.5 px-1.5 rounded-r-xl bg-[var(--surface-card)]/90 hover:bg-[var(--surface-card-elevated)] backdrop-blur-md border border-l-0 border-[var(--border-soft)] hover:border-[var(--color-mauve)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] shadow-xl transition-all duration-300 group ${
+          className={`hidden lg:flex fixed top-24 left-0 z-40 items-center justify-center py-2.5 px-1.5 rounded-r-xl bg-white dark:bg-[var(--surface-card)]/90 hover:bg-slate-50 dark:hover:bg-[var(--surface-card-elevated)] backdrop-blur-md border border-l-0 border-slate-300/90 dark:border-[var(--border-soft)] hover:border-slate-400 dark:hover:border-[var(--color-mauve)] text-slate-800 dark:text-[var(--text-secondary)] hover:text-black dark:hover:text-[var(--text-primary)] shadow-xl transition-all duration-300 group ${
             isDesktopOpen
               ? 'opacity-0 pointer-events-none -translate-x-full'
               : 'opacity-100 translate-x-0'
@@ -338,8 +338,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           aria-label="Expand side panel"
         >
           <div className="flex flex-col items-center gap-1.5">
-            <PanelLeft className="w-4 h-4 text-[var(--color-mauve)] group-hover:text-[var(--color-pale-blush)] transition-colors" />
-            <ChevronRight className="w-3 h-3 text-[var(--text-muted)] group-hover:translate-x-0.5 transition-transform" />
+            <PanelLeft className="w-4 h-4 text-slate-700 dark:text-[var(--color-mauve)] group-hover:text-black dark:group-hover:text-[var(--color-pale-blush)] transition-colors" />
+            <ChevronRight className="w-3 h-3 text-slate-500 dark:text-[var(--text-muted)] group-hover:translate-x-0.5 transition-transform" />
           </div>
         </button>
       )}

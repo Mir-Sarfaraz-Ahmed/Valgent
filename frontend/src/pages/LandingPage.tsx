@@ -34,8 +34,8 @@ export const LandingPage: React.FC = () => {
             {/* Left Column: Technical Narrative & Actions */}
             <div className="lg:col-span-7 flex flex-col items-start gap-5 sm:gap-6">
               {/* Category Badge */}
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[var(--color-merlot)]/20 text-[var(--color-dusty-rose)] border border-[var(--color-mauve)]/30">
-                <span className="w-2 h-2 rounded-full bg-[var(--color-dusty-rose)] animate-pulse" />
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-black/5 dark:bg-[var(--color-merlot)]/20 text-[var(--text-secondary)] dark:text-[var(--color-dusty-rose)] border border-[var(--border-strong)] shadow-xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span>AHGV BUILDVERSE 2026 · Problem Statement PS-02</span>
               </div>
 
@@ -52,14 +52,14 @@ export const LandingPage: React.FC = () => {
               </p>
 
               {/* Core Principle Callout */}
-              <div className="p-3.5 rounded-xl bg-[var(--surface-card)] border border-[var(--border-strong)] text-xs text-[var(--text-secondary)] max-w-xl">
-                <span className="font-bold text-[var(--color-dusty-rose)] uppercase tracking-wider block mb-1">
+              <div className="p-4 rounded-xl bg-white dark:bg-[var(--surface-card)] border border-[var(--border-strong)] text-xs text-[var(--text-secondary)] max-w-xl shadow-sm">
+                <span className="font-bold text-[var(--text-primary)] dark:text-[var(--color-dusty-rose)] uppercase tracking-wider block mb-1">
                   The Fundamental Rule:
                 </span>
-                <p className="font-mono text-[13px] text-[var(--color-pale-blush)]">
+                <p className="font-mono text-[13px] font-bold text-[var(--text-primary)] dark:text-[var(--color-pale-blush)]">
                   CLAIM ≠ PROOF &nbsp;|&nbsp; DOCUMENTATION ≠ IMPLEMENTATION
                 </p>
-                <p className="mt-1 text-[11px] text-[var(--text-muted)]">
+                <p className="mt-1.5 text-[11px] text-[var(--text-muted)] font-medium">
                   A README statement or dependency in package.json is not proof of functioning software.
                   Proof requires AST symbols, route handlers, and isolated execution telemetry.
                 </p>
@@ -101,7 +101,7 @@ export const LandingPage: React.FC = () => {
               {/* Outer decorative ambient glow behind the glass */}
               <div className="absolute -inset-1.5 rounded-3xl bg-gradient-to-tr from-[var(--color-merlot)]/50 via-[var(--color-mauve)]/30 to-[var(--color-dusty-rose)]/40 blur-2xl opacity-50 group-hover:opacity-75 transition-opacity pointer-events-none" />
 
-              <div className="relative rounded-2xl p-5 sm:p-7 overflow-hidden border border-white/20 dark:border-white/15 bg-gradient-to-b from-white/[0.08] via-[var(--surface-card-elevated)]/45 to-[var(--surface-card)]/60 backdrop-blur-2xl backdrop-saturate-180 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.6),inset_0_1px_1px_0_rgba(255,255,255,0.25),inset_0_-1px_1px_0_rgba(0,0,0,0.3)] transition-all">
+              <div className="relative rounded-2xl p-5 sm:p-7 overflow-hidden border border-slate-200/90 dark:border-white/15 bg-white/95 dark:bg-gradient-to-b dark:from-white/[0.08] dark:via-[var(--surface-card-elevated)]/45 dark:to-[var(--surface-card)]/60 backdrop-blur-2xl backdrop-saturate-180 shadow-xl dark:shadow-[0_24px_48px_-12px_rgba(0,0,0,0.6)] transition-all">
                 {/* Specular light highlight along top rim */}
                 <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/50 to-transparent pointer-events-none" />
 
@@ -109,13 +109,13 @@ export const LandingPage: React.FC = () => {
                 <div className="absolute -inset-full w-[200%] h-[200%] bg-gradient-to-br from-white/[0.05] via-transparent to-transparent rotate-12 pointer-events-none" />
 
                 {/* Header inside mockup */}
-                <div className="flex items-center justify-between pb-4 border-b border-white/10 dark:border-white/[0.08] relative z-10">
+                <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-white/[0.08] relative z-10">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-[var(--color-merlot)] shadow-inner ring-1 ring-white/10" />
                     <div className="w-3 h-3 rounded-full bg-[var(--color-mauve)] shadow-inner ring-1 ring-white/10" />
                     <div className="w-3 h-3 rounded-full bg-[var(--color-dusty-rose)] shadow-inner ring-1 ring-white/10" />
                   </div>
-                  <span className="text-[11px] font-mono text-[var(--color-dusty-rose)] tracking-wider">
+                  <span className="text-[11px] font-mono font-medium text-[var(--text-muted)] dark:text-[var(--color-dusty-rose)] tracking-wider">
                     PS-02 Verification Core v1.0
                   </span>
                 </div>
@@ -123,17 +123,17 @@ export const LandingPage: React.FC = () => {
                 {/* 5-Step Narrative Micro-Flow */}
                 <div className="flex flex-col gap-3.5 py-4 relative">
                   {/* Connecting line */}
-                  <div className="absolute left-5 top-[22px] bottom-[22px] w-0.5 -translate-x-1/2 bg-gradient-to-b from-[var(--color-merlot)] via-[var(--color-mauve)] to-[var(--color-dusty-rose)] opacity-70 z-0" />
+                  <div className="absolute left-5 top-[22px] bottom-[22px] w-0.5 -translate-x-1/2 bg-gradient-to-b from-slate-400 via-[var(--color-mauve)] to-slate-400 dark:from-[var(--color-merlot)] dark:via-[var(--color-mauve)] dark:to-[var(--color-dusty-rose)] opacity-70 z-0" />
 
                   {/* Stage 1: Repository Ingestion */}
                   <div className="flex items-start gap-3.5 relative z-10">
-                    <div className="w-10 h-10 rounded-xl bg-[var(--surface-card-elevated)] border border-[var(--border-strong)] flex items-center justify-center text-[var(--color-dusty-rose)] flex-shrink-0 shadow-md mt-0.5">
+                    <div className="w-10 h-10 rounded-xl bg-white dark:bg-[var(--surface-card-elevated)] border border-slate-200 dark:border-[var(--border-strong)] flex items-center justify-center text-[var(--text-primary)] dark:text-[var(--color-dusty-rose)] flex-shrink-0 shadow-sm mt-0.5">
                       <GitBranch className="w-5 h-5" />
                     </div>
                     <div className="flex flex-col min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-[var(--text-primary)]">1. Repository</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 dark:bg-white/[0.06] backdrop-blur-xs border border-white/10 dark:border-white/[0.08] text-[var(--text-muted)] font-mono">git clone</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/[0.06] backdrop-blur-xs border border-black/10 dark:border-white/[0.08] text-[var(--text-secondary)] font-mono">git clone</span>
                       </div>
                       <span className="text-[11px] text-[var(--text-muted)] leading-tight mt-0.5">
                         Deep tree clone & commit SHA pinning

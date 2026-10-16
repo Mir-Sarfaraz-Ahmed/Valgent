@@ -84,25 +84,32 @@
   --surface-card-elevated: #FFFFFF;
   --surface-input: #FFFFFF;
 
-  --border-soft: rgba(17, 33, 45, 0.12);
-  --border-strong: rgba(17, 33, 45, 0.22);
+  --border-soft: rgba(17, 33, 45, 0.16);
+  --border-strong: rgba(17, 33, 45, 0.28);
   --border-focus: #253745;
 
   --text-primary: #06141B;
-  --text-secondary: #253745;
-  --text-muted: #4A5C6A;
-  --text-inverted: #CCD0CF;
+  --text-secondary: #1C2E3B;
+  --text-muted: #3D505D;
+  --text-inverted: #FFFFFF;
 
-  --action-primary: #253745;
-  --action-primary-hover: #11212D;
-  --action-secondary: #CCD0CF;
-  --action-secondary-hover: #B6BCBA;
-  --action-accent: #4A5C6A;
+  /* Brand Accents adapted for high visibility in Light Mode */
+  --color-grape-skin: #11212D;
+  --color-merlot: #253745;
+  --color-mauve: #3A4E5D;
+  --color-dusty-rose: #253745;
+  --color-pale-blush: #11212D;
 
-  --shadow-sm: 0 1px 3px rgba(17, 33, 45, 0.05);
-  --shadow-card: 0 4px 16px -2px rgba(17, 33, 45, 0.08);
-  --shadow-elevated: 0 16px 36px -6px rgba(17, 33, 45, 0.12);
-  --shadow-cta: 0 4px 16px rgba(37, 55, 69, 0.25);
+  --action-primary: #11212D;
+  --action-primary-hover: #06141B;
+  --action-secondary: #E2E8F0;
+  --action-secondary-hover: #CBD5E1;
+  --action-accent: #253745;
+
+  --shadow-sm: 0 1px 3px rgba(17, 33, 45, 0.08);
+  --shadow-card: 0 4px 16px -2px rgba(17, 33, 45, 0.1), 0 2px 4px rgba(17, 33, 45, 0.05);
+  --shadow-elevated: 0 16px 36px -6px rgba(17, 33, 45, 0.15);
+  --shadow-cta: 0 4px 16px rgba(17, 33, 45, 0.22);
 
   --status-verified: #059669;
   --status-verified-bg: #E1F8ED;
@@ -461,6 +468,12 @@ code, pre, .font-mono {
 /* Gradient Text Accent */
 .gradient-brand {
   background: linear-gradient(135deg, var(--color-pale-blush) 0%, var(--color-dusty-rose) 50%, var(--color-mauve) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+[data-theme="light"] .gradient-brand {
+  background: linear-gradient(135deg, #06141B 0%, #1E3A4C 45%, #3A4E5D 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }

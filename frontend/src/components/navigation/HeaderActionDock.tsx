@@ -31,9 +31,13 @@ export const HeaderActionDock: React.FC<HeaderActionDockProps> = ({
   const { theme, toggleTheme } = useTheme();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
+  // Common unhovered style: crisp white circle with dark icon & shadow in light mode, translucent frosted circle in dark mode
+  const unhoveredBtnClass =
+    'w-9 sm:w-10 bg-white dark:bg-white/10 text-slate-800 dark:text-[var(--text-secondary)] hover:text-black dark:hover:text-[var(--text-primary)] border border-slate-300/90 dark:border-white/10 shadow-sm hover:shadow-md dark:shadow-none';
+
   return (
     <div
-      className={`inline-flex items-center gap-2 sm:gap-2.5 p-1 rounded-full bg-black/5 dark:bg-white/5 border border-[var(--border-soft)] backdrop-blur-md transition-all ${className}`}
+      className={`inline-flex items-center gap-2 sm:gap-2.5 p-1 rounded-full bg-slate-200/70 dark:bg-white/5 border border-slate-300/80 dark:border-[var(--border-soft)] shadow-xs backdrop-blur-md transition-all ${className}`}
       role="toolbar"
       aria-label="Navigation actions"
     >
@@ -48,7 +52,7 @@ export const HeaderActionDock: React.FC<HeaderActionDockProps> = ({
           className={`relative h-9 sm:h-10 rounded-full flex items-center justify-center transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
             hoveredId === 'recheck' || isRechecking
               ? 'px-4 sm:px-5 bg-gradient-to-r from-blue-600 via-blue-500 to-sky-400 text-white shadow-[0_0_20px_rgba(59,130,246,0.55)] scale-[1.02]'
-              : 'w-9 sm:w-10 bg-white/10 dark:bg-white/10 text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-white/10'
+              : unhoveredBtnClass
           }`}
           title="Recheck against repository head"
           aria-label="Recheck claims against repository"
@@ -79,7 +83,7 @@ export const HeaderActionDock: React.FC<HeaderActionDockProps> = ({
             ? isOfflineMode
               ? 'px-4 sm:px-5 bg-gradient-to-r from-amber-600 to-orange-500 text-white shadow-[0_0_20px_rgba(245,158,11,0.55)] scale-[1.02]'
               : 'px-4 sm:px-5 bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-400 text-white shadow-[0_0_20px_rgba(16,185,129,0.55)] scale-[1.02]'
-            : 'w-9 sm:w-10 bg-white/10 dark:bg-white/10 text-[var(--text-secondary)] border border-white/10'
+            : unhoveredBtnClass
         }`}
         title={
           isOfflineMode
@@ -89,12 +93,12 @@ export const HeaderActionDock: React.FC<HeaderActionDockProps> = ({
       >
         <div className="relative flex items-center justify-center">
           {isOfflineMode ? (
-            <WifiOff className="w-4 h-4 text-amber-300" />
+            <WifiOff className="w-4 h-4 text-amber-500 dark:text-amber-300" />
           ) : (
-            <Server className={`w-4 h-4 ${hoveredId === 'server' ? 'text-white' : 'text-emerald-400'}`} />
+            <Server className={`w-4 h-4 ${hoveredId === 'server' ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'}`} />
           )}
           {!isOfflineMode && (
-            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           )}
         </div>
         <span
@@ -116,7 +120,7 @@ export const HeaderActionDock: React.FC<HeaderActionDockProps> = ({
         className={`relative h-9 sm:h-10 rounded-full flex items-center justify-center transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
           hoveredId === 'home'
             ? 'px-4 sm:px-5 bg-gradient-to-r from-[#9333ea] via-[#a855f7] to-[#c084fc] text-white shadow-[0_0_22px_rgba(168,85,247,0.6)] scale-[1.02]'
-            : 'w-9 sm:w-10 bg-white/10 dark:bg-white/10 text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-white/10'
+            : unhoveredBtnClass
         }`}
         title="Go to Home"
         aria-label="Home"
@@ -144,7 +148,7 @@ export const HeaderActionDock: React.FC<HeaderActionDockProps> = ({
             ? theme === 'dark'
               ? 'px-4 sm:px-5 bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-400 text-white shadow-[0_0_20px_rgba(99,102,241,0.55)] scale-[1.02]'
               : 'px-4 sm:px-5 bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 text-slate-900 shadow-[0_0_20px_rgba(245,158,11,0.55)] scale-[1.02]'
-            : 'w-9 sm:w-10 bg-white/10 dark:bg-white/10 text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-white/10'
+            : unhoveredBtnClass
         }`}
         title={`Switch to ${theme === 'dark' ? 'Light Silk' : 'Dark Plum'} theme`}
         aria-label="Toggle theme"
@@ -152,7 +156,7 @@ export const HeaderActionDock: React.FC<HeaderActionDockProps> = ({
         {theme === 'dark' ? (
           <Moon className="w-4 h-4 flex-shrink-0" />
         ) : (
-          <Sun className="w-4 h-4 flex-shrink-0" />
+          <Sun className="w-4 h-4 flex-shrink-0 text-amber-600" />
         )}
         <span
           className={`overflow-hidden transition-all duration-300 font-bold text-xs tracking-wider uppercase whitespace-nowrap ${
@@ -174,12 +178,12 @@ export const HeaderActionDock: React.FC<HeaderActionDockProps> = ({
           className={`relative h-9 sm:h-10 rounded-full flex items-center justify-center transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
             hoveredId === 'profile'
               ? 'px-3.5 sm:px-4.5 bg-gradient-to-r from-[#be185d] via-[#d946ef] to-[#ec4899] text-white shadow-[0_0_22px_rgba(236,72,153,0.6)] scale-[1.02]'
-              : 'w-9 sm:w-10 bg-white/10 dark:bg-white/10 text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-white/10'
+              : unhoveredBtnClass
           }`}
           title={`${user.fullName || user.email} (View & Customize Profile)`}
           aria-label="User profile settings"
         >
-          <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full overflow-hidden bg-gradient-to-tr from-[var(--color-merlot)] to-[var(--color-mauve)] text-white flex items-center justify-center font-bold text-[11px] uppercase flex-shrink-0 border border-white/20">
+          <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full overflow-hidden bg-gradient-to-tr from-[var(--color-merlot)] to-[var(--color-mauve)] text-white flex items-center justify-center font-bold text-[11px] uppercase flex-shrink-0 border border-slate-300 dark:border-white/20">
             {user.avatarUrl ? (
               <img
                 src={user.avatarUrl}
