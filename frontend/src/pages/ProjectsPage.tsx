@@ -200,7 +200,7 @@ export const ProjectsPage: React.FC = () => {
               title={
                 isOfflineMode
                   ? 'Server offline or unreachable. Displaying cached reference projects.'
-                  : 'Connected to Valgent verification backend (localhost:3000).'
+                  : 'Connected to live Valgent AST verification backend.'
               }
             >
               {isOfflineMode ? (
@@ -246,7 +246,7 @@ export const ProjectsPage: React.FC = () => {
               <div className="flex-1">
                 <p className="font-bold">Offline / Cached Evaluation Mode</p>
                 <p className="text-xs text-amber-300/80 mt-0.5">
-                  Unable to reach backend at port 3000. Displaying local demo fixtures. Start the backend service with <code className="px-1.5 py-0.5 rounded bg-black/20 font-mono">npm start</code> in the Backend folder to connect to live AST and execution endpoints.
+                  Unable to reach Valgent backend service. Displaying cached demo fixtures. Ensure the backend service is running to connect to live AST and execution endpoints.
                 </p>
               </div>
               <button

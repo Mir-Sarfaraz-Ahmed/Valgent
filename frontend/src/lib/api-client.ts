@@ -11,7 +11,7 @@ import {
 } from '../types/report';
 import { SupabaseService } from './supabase-service';
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://valgent.onrender.com/api/v1';
 
 export interface ApiError {
   code: string;
