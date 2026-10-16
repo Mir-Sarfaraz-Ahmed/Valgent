@@ -233,7 +233,7 @@ export const ProjectsPage: React.FC = () => {
                 placeholder="Search projects by name, repo or description..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="ui-input pl-10 text-xs sm:text-sm"
+                className="ui-input pl-11 text-xs sm:text-sm"
               />
             </div>
 

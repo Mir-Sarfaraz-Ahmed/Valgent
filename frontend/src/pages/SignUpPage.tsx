@@ -103,7 +103,7 @@ export const SignUpPage: React.FC = () => {
                   placeholder="Alex Mercer"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="ui-input pl-10 text-xs sm:text-sm"
+                  className="ui-input pl-11 text-xs sm:text-sm"
                   required
                 />
               </div>
@@ -121,7 +121,7 @@ export const SignUpPage: React.FC = () => {
                   placeholder="you@domain.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="ui-input pl-10 text-xs sm:text-sm"
+                  className="ui-input pl-11 text-xs sm:text-sm"
                   required
                 />
               </div>
@@ -139,7 +139,7 @@ export const SignUpPage: React.FC = () => {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="ui-input pl-10 pr-10 text-xs sm:text-sm"
+                  className="ui-input pl-11 pr-11 text-xs sm:text-sm"
                   required
                   minLength={6}
                 />
