@@ -220,7 +220,7 @@ export const ProjectService = {
         const supaProjects = await SupabaseService.getProjects(userId);
         if (supaProjects !== null) {
           const cleanProjects = supaProjects.filter(
-            p => !['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(p.id)
+            p => !['proj-valgent-demo', 'proj-campusconnect'].includes(p.id)
           );
           localStorage.setItem(cacheKey, JSON.stringify(cleanProjects));
           return {
@@ -252,7 +252,7 @@ export const ProjectService = {
       const rawList = Array.isArray(data.projects) ? data.projects : [];
 
       const serverProjects: Project[] = rawList
-        .filter((p: any) => !['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(p.id))
+        .filter((p: any) => !['proj-valgent-demo', 'proj-campusconnect'].includes(p.id))
         .map((p: any) => ({
           id: p.id,
           name: p.name,
@@ -282,7 +282,7 @@ export const ProjectService = {
         try {
           const parsed = JSON.parse(cached);
           fallbackList = (Array.isArray(parsed) ? parsed : []).filter(
-            (p: Project) => !['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(p.id)
+            (p: Project) => !['proj-valgent-demo', 'proj-campusconnect'].includes(p.id)
           );
         } catch {
           fallbackList = [];
@@ -301,7 +301,7 @@ export const ProjectService = {
    * Fetch a single project by ID from backend or Supabase.
    */
   async getProjectById(id: string, ownerId?: string): Promise<Project | null> {
-    if (['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(id)) {
+    if (['proj-valgent-demo', 'proj-campusconnect'].includes(id)) {
       return null;
     }
     const userId = ownerId || getCurrentUserId();
@@ -311,7 +311,7 @@ export const ProjectService = {
     if (userId) {
       try {
         const supaProject = await SupabaseService.getProjectById(id, userId);
-        if (supaProject && !['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(supaProject.id)) {
+        if (supaProject && !['proj-valgent-demo', 'proj-campusconnect'].includes(supaProject.id)) {
           return supaProject;
         }
       } catch {
@@ -337,7 +337,7 @@ export const ProjectService = {
       }
 
       const p = await res.json();
-      if (['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(p.id)) {
+      if (['proj-valgent-demo', 'proj-campusconnect'].includes(p.id)) {
         return null;
       }
 
@@ -359,7 +359,7 @@ export const ProjectService = {
       if (cached) {
         try {
           const list: Project[] = JSON.parse(cached);
-          return list.find((p: Project) => p.id === id && !['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(p.id)) || null;
+          return list.find((p: Project) => p.id === id && !['proj-valgent-demo', 'proj-campusconnect'].includes(p.id)) || null;
         } catch {
           return null;
         }

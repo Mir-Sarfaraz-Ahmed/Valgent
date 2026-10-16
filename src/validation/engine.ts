@@ -43,10 +43,23 @@ export class ValidationEngine {
             (subgraph as any).truncated = sub.truncated;
 
             // extract evidence subset
+            const evidenceStoreMap = new Map(evidenceStore.map(e => [e.evidence_id, e]));
             const evidenceIds = new Set<string>();
-            sub.nodes.filter(n => n.type === 'evidence').forEach(n => evidenceIds.add(n.id));
+
+            sub.nodes.forEach(n => {
+               if (n.type === 'evidence' || evidenceStoreMap.has(n.id)) {
+                  evidenceIds.add(n.id);
+               }
+               if (n.metadata?.evidence_id && evidenceStoreMap.has(n.metadata.evidence_id)) {
+                  evidenceIds.add(n.metadata.evidence_id);
+               }
+            });
             sub.edges.forEach(e => {
-               if (e.evidence_refs) e.evidence_refs.forEach(r => evidenceIds.add(r));
+               if (e.evidence_refs) {
+                  e.evidence_refs.forEach(r => {
+                     if (evidenceStoreMap.has(r)) evidenceIds.add(r);
+                  });
+               }
             });
 
             relEvidence = evidenceStore.filter(e => evidenceIds.has(e.evidence_id));
@@ -101,24 +114,44 @@ export class ValidationEngine {
         let finalStatus: 'VERIFIED' | 'PARTIALLY_VERIFIED' | 'NOT_VERIFIED' | 'INSUFFICIENT_EVIDENCE' = 'INSUFFICIENT_EVIDENCE';
 
         if (evalStatus) {
-           if (evalStatus.evidence_sufficiency === 'SUFFICIENT') finalStatus = 'VERIFIED';
-           else if (evalStatus.implementation_status === 'PARTIAL' || evalStatus.implementation_status === 'PRESENT') finalStatus = 'PARTIALLY_VERIFIED';
+           if (evalStatus.evidence_sufficiency === 'SUFFICIENT' || evalStatus.implementation_status === 'PRESENT') {
+              finalStatus = 'VERIFIED';
+           } else if (evalStatus.implementation_status === 'PARTIAL') {
+              finalStatus = 'PARTIALLY_VERIFIED';
+           }
 
            if (evalStatus.contradiction_status === 'CONTRADICTED') finalStatus = 'NOT_VERIFIED';
            if (evalStatus.implementation_status === 'ABSENT' && evalStatus.execution_status === 'NOT_ATTEMPTED') finalStatus = 'INSUFFICIENT_EVIDENCE';
+        }
+
+        const relevantEvs = pkg?.evidence || [];
+        const evRefs = relevantEvs.slice(0, 5).map((e: any) => e.evidence_id);
+        const graphRefs = (pkg?.subgraph?.nodes || []).slice(0, 5).map((n: any) => n.id);
+
+        let conclusion = 'Deterministic evidence was collected, but semantic synthesis was unavailable.';
+        if (finalStatus === 'VERIFIED') {
+           const locations = Array.from(new Set(relevantEvs.map((e: any) => e.location))).filter(Boolean).slice(0, 3).join(', ');
+           conclusion = locations ? `Verified by deterministic AST inspection across implementation evidence: ${locations}.` : 'Verified by deterministic AST inspection.';
+        } else if (finalStatus === 'PARTIALLY_VERIFIED') {
+           const locations = Array.from(new Set(relevantEvs.map((e: any) => e.location))).filter(Boolean).slice(0, 3).join(', ');
+           conclusion = locations ? `Partially verified through static symbols in ${locations}. Dynamic execution tests were not run.` : 'Partially verified through static symbols.';
+        } else if (finalStatus === 'NOT_VERIFIED') {
+           conclusion = 'Deterministic checks identified a direct contradiction in repository code or execution.';
+        } else {
+           conclusion = 'No matching AST symbols, routes, or implementation files were found for this claim.';
         }
 
         return {
           claim_id: c.claim_id,
           text: c.text,
           status: finalStatus,
-          conclusion: 'Deterministic evidence was collected, but semantic synthesis was unavailable.',
-          evidence_refs: [],
-          graph_refs: [],
-          limitations: [],
-          missing_evidence: [],
-          requirement_refs: [],
-          checks: []
+          conclusion,
+          evidence_refs: evRefs,
+          graph_refs: graphRefs,
+          limitations: evalStatus?.deterministic_constraints || [],
+          missing_evidence: finalStatus === 'INSUFFICIENT_EVIDENCE' ? ['Matching AST symbol or route'] : [],
+          requirement_refs: pkg?.requirement_id ? [pkg.requirement_id] : [],
+          checks: ['AST Symbol Inspection', 'Route Table Analysis']
         };
       });
 

@@ -86,7 +86,27 @@ export function extractClaimsFromDocument(content: string, filename?: string): E
         currentClaim = null;
       }
       const lowerHeader = line.toLowerCase();
-      if (lowerHeader.includes('claim') || lowerHeader.includes('requirement') || lowerHeader.includes('specification') || lowerHeader.includes('test set')) {
+      // Level 1 headers (# Title) are document titles, not claims sections
+      if (/^#\s+[^#]/.test(line)) {
+        inClaimsSection = false;
+        continue;
+      }
+      if (
+        lowerHeader.includes('repository under test') ||
+        lowerHeader.includes('instructions') ||
+        lowerHeader.includes('overview') ||
+        lowerHeader.includes('setup') ||
+        lowerHeader.includes('environment') ||
+        lowerHeader.includes('metadata') ||
+        lowerHeader.includes('context') ||
+        lowerHeader.includes('purpose')
+      ) {
+        inClaimsSection = false;
+      } else if (
+        lowerHeader.includes('claim') ||
+        lowerHeader.includes('requirement') ||
+        lowerHeader.includes('specification')
+      ) {
         inClaimsSection = true;
       }
       continue;
@@ -97,7 +117,9 @@ export function extractClaimsFromDocument(content: string, filename?: string): E
       if (currentClaim) claims.push(currentClaim);
       const rawId = boldMatch[1].trim();
       const text = boldMatch[2].trim();
-      if (!IGNORE_WORDS.has(rawId.toLowerCase()) && text.length > 5) {
+      const lowerRaw = rawId.toLowerCase();
+      const isMetaText = /^(snapshot\s*inspected|evidence\s*to\s*inspect|repository|branch|commit|author|purpose|important)/i.test(text);
+      if (!IGNORE_WORDS.has(lowerRaw) && !isMetaText && text.length > 5) {
         currentClaim = { claim_id: rawId, text };
         continue;
       }
@@ -108,7 +130,9 @@ export function extractClaimsFromDocument(content: string, filename?: string): E
       if (currentClaim) claims.push(currentClaim);
       const rawId = bracketMatch[1].trim();
       const text = bracketMatch[2].trim();
-      if (!IGNORE_WORDS.has(rawId.toLowerCase()) && text.length > 5) {
+      const lowerRaw = rawId.toLowerCase();
+      const isMetaText = /^(snapshot\s*inspected|evidence\s*to\s*inspect|repository|branch|commit|author|purpose|important)/i.test(text);
+      if (!IGNORE_WORDS.has(lowerRaw) && !isMetaText && text.length > 5) {
         currentClaim = { claim_id: rawId, text };
         continue;
       }
@@ -137,7 +161,8 @@ export function extractClaimsFromDocument(content: string, filename?: string): E
 
     if (inClaimsSection && (line.startsWith('- ') || line.startsWith('* ') || /^\d+\.\s+/.test(line))) {
       const stripped = line.replace(/^(?:[-*+]|\d+\.)\s+/, '').trim();
-      if (stripped.length > 10 && !stripped.toLowerCase().startsWith('repository') && !stripped.toLowerCase().startsWith('branch')) {
+      const isMeta = /^(snapshot\s*inspected|evidence\s*to\s*inspect|repository|branch|commit|author|prerequisites|how\s*to|notes?|test\s*environment|purpose|important|overview)/i.test(stripped);
+      if (!isMeta && stripped.length > 10) {
         claims.push({
           claim_id: `CLM-${String(genericCounter++).padStart(3, '0')}`,
           text: stripped,

@@ -19,10 +19,27 @@ export class ClaimEvidenceEvaluator {
 
     let implementationNodes = 0;
     let docNodes = 0;
+    const counted = new Set<string>();
 
     for (const node of subgraph.nodes) {
       const ev = evidenceMap.get(node.id);
       if (ev) {
+        if (!counted.has(ev.evidence_id)) {
+          counted.add(ev.evidence_id);
+          if (ev.classification === 'IMPLEMENTATION') implementationNodes++;
+          if (ev.classification === 'DOCUMENTATION') docNodes++;
+        }
+      } else if (node.type === 'symbol' || node.type === 'route' || node.type === 'databaseOperation') {
+        if (!counted.has(node.id)) {
+          counted.add(node.id);
+          implementationNodes++;
+        }
+      }
+    }
+
+    for (const ev of evidenceStore) {
+      if (!counted.has(ev.evidence_id)) {
+        counted.add(ev.evidence_id);
         if (ev.classification === 'IMPLEMENTATION') implementationNodes++;
         if (ev.classification === 'DOCUMENTATION') docNodes++;
       }

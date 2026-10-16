@@ -248,77 +248,188 @@ export class EvidenceGraphBuilder {
 
     // 5. Connect Evidence to Nodes
     for (const evd of evidenceList) {
-       if (evd.type === 'API_ROUTE') {
-          // Attempt to link to route node
-          if (evd.metadata && evd.metadata.route_id) {
-             this.graph.addEdge({
-               edge_id: `EDGE-EVD-${evd.evidence_id}-${evd.metadata.route_id}`,
-               from: evd.evidence_id,
-               to: evd.metadata.route_id,
-               type: 'EVIDENCE_LOCATES',
-               confidence: 1.0,
-               evidence_refs: [evd.evidence_id]
-             });
-          }
-       }
-       if (evd.type === 'DATABASE_OPERATION') {
-          if (evd.metadata && evd.metadata.operation_id) {
-             this.graph.addEdge({
-               edge_id: `EDGE-EVD-${evd.evidence_id}-${evd.metadata.operation_id}`,
-               from: evd.evidence_id,
-               to: evd.metadata.operation_id,
-               type: 'EVIDENCE_LOCATES',
-               confidence: 1.0,
-               evidence_refs: [evd.evidence_id]
-             });
-          }
+       const targetId = evd.metadata?.route_id || evd.metadata?.operation_id || evd.metadata?.symbol_id || evd.metadata?.evidence_id || evd.evidence_id;
+       if (targetId && this.graph.hasNode(targetId) && targetId !== evd.evidence_id) {
+          this.graph.addEdge({
+            edge_id: `EDGE-EVD-${evd.evidence_id}-${targetId}`,
+            from: evd.evidence_id,
+            to: targetId,
+            type: 'EVIDENCE_LOCATES',
+            confidence: 1.0,
+            evidence_refs: [evd.evidence_id]
+          });
        }
     }
 
-    // 6. Claim -> Semantic Node resolution heuristic
-    // For V0.7 we do a basic keyword match to link requirements to semantic nodes as a starting point.
-    // Real implementation would use the AST analysis from V0.6 and LLM extraction to form exact edges.
+    // 6. Claim -> Semantic Node & Evidence resolution heuristic
+    const STOPWORDS = new Set([
+      'the', 'is', 'at', 'which', 'on', 'a', 'an', 'and', 'or', 'for', 'of', 'in', 'to', 'by',
+      'from', 'that', 'this', 'with', 'be', 'are', 'can', 'will', 'should', 'must', 'have',
+      'has', 'been', 'each', 'all', 'any', 'into', 'help', 'helps', 'used', 'uses', 'using',
+      'app', 'application', 'feature', 'system', 'project', 'repo', 'repository', 'intended',
+      'written', 'code', 'support', 'supports', 'based', 'module', 'built', 'build', 'entirely',
+      'user', 'users', 'various', 'includes', 'including', 'implemented', 'works', 'working',
+      'provides', 'provided', 'handling', 'handles', 'managed', 'manages', 'management'
+    ]);
+
+    function extractTokens(text: string): string[] {
+      const tokens = new Set<string>();
+      const rawWords = text.toLowerCase().split(/[^a-z0-9_/-]+/);
+      for (const w of rawWords) {
+        if (!w || STOPWORDS.has(w)) continue;
+        if (w.length >= 3) tokens.add(w);
+        const subParts = w.split(/[/_-]/);
+        if (subParts.length > 1) {
+          for (const sp of subParts) {
+            if (sp.length >= 3 && !STOPWORDS.has(sp)) tokens.add(sp);
+          }
+        }
+      }
+      return Array.from(tokens);
+    }
+
+    // Index evidence by location/filename for fast file matching
+    const evidenceByFile = new Map<string, Evidence[]>();
+    for (const ev of evidenceList) {
+       if (ev.location) {
+          const locLower = ev.location.toLowerCase();
+          if (!evidenceByFile.has(locLower)) evidenceByFile.set(locLower, []);
+          evidenceByFile.get(locLower)!.push(ev);
+       }
+    }
+
+    const allGraphNodes = this.graph.serialize().nodes;
+    const hasExecution = this.graph.getNodesByType('executionResult').length > 0;
+
     for (const claim of claims) {
        const reqNode = this.graph.getNodesByType('requirement').find(r => r.metadata?.claim_id === claim.claim_id);
-       if (reqNode) {
-          const keywords = claim.text.toLowerCase().split(' ').filter(k => k.length > 3);
-          let foundConnection = false;
-          let hasExecution = false;
+       if (!reqNode) continue;
 
-          for (const route of this.graph.getNodesByType('route')) {
-             if (keywords.some(k => route.label.toLowerCase().includes(k))) {
-                this.graph.addEdge({
-                  edge_id: `EDGE-${reqNode.id}-${route.id}`,
-                  from: reqNode.id,
-                  to: route.id,
-                  type: 'REQUIREMENT_SUPPORTED_BY',
-                  confidence: 0.5,
-                  evidence_refs: []
-                });
-                foundConnection = true;
+       const claimTokens = extractTokens(claim.text);
+       const lowerClaimText = claim.text.toLowerCase();
+
+       // Match candidates with scoring
+       interface ScoredMatch {
+         nodeId: string;
+         score: number;
+         evidenceRefs: string[];
+       }
+       const matches: ScoredMatch[] = [];
+
+       for (const node of allGraphNodes) {
+          if (node.id === claim.claim_id || node.id === reqNode.id) continue;
+          let score = 0;
+          let matchedTokensCount = 0;
+          const nodeLabel = (node.label || '').toLowerCase();
+          const nodeSource = (node.source || '').toLowerCase();
+
+          for (const token of claimTokens) {
+             let matched = false;
+             const escapedToken = token.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+             const tokenRe = new RegExp(`\\b${escapedToken}\\b`, 'i');
+             if (tokenRe.test(nodeLabel)) {
+                score += token.length > 5 ? 4 : 2;
+                matched = true;
+             } else if (nodeSource.includes(token)) {
+                score += token.length > 5 ? 3 : 1;
+                matched = true;
+             }
+             if (matched) matchedTokensCount++;
+          }
+
+          // Exact endpoint or file matching bonuses
+          if (node.type === 'route') {
+             const pathPart = (node.metadata?.path || '').toLowerCase();
+             if (pathPart && pathPart !== '/' && lowerClaimText.includes(pathPart)) {
+                score += 10;
+                matchedTokensCount += 2;
+             }
+          }
+          if (node.type === 'symbol') {
+             const symName = (node.label || '').toLowerCase();
+             if (symName && symName.length > 3) {
+                const escaped = symName.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+                if (new RegExp(`\\b${escaped}\\b`, 'i').test(lowerClaimText)) {
+                   score += 8;
+                   matchedTokensCount += 2;
+                }
              }
           }
 
-          // Check if there's test execution
-          if (this.graph.getNodesByType('executionResult').length > 0) {
-             hasExecution = true;
-          }
+          // Strict threshold: Require at least 2 distinct tokens AND score >= 6
+          if (score >= 6 && matchedTokensCount >= 2) {
+             const evRefs: string[] = [];
+             if (node.type === 'evidence') {
+                evRefs.push(node.id);
+             } else if (node.metadata?.evidence_id) {
+                evRefs.push(node.metadata.evidence_id);
+             }
+             // Also look up any direct evidence matching this node's source file
+             if (node.source && evidenceByFile.has(node.source.toLowerCase())) {
+                const fileEvs = evidenceByFile.get(node.source.toLowerCase())!;
+                fileEvs.slice(0, 3).forEach(fe => evRefs.push(fe.evidence_id));
+             }
 
-          let completeness: CompletenessStatus = 'UNRESOLVED';
-          if (foundConnection && hasExecution) {
-             completeness = 'COMPLETE';
-          } else if (foundConnection) {
-             completeness = 'PARTIAL';
+             matches.push({
+               nodeId: node.id,
+               score,
+               evidenceRefs: Array.from(new Set(evRefs))
+             });
           }
-
-          this.graph.addClaimChain({
-             claim_id: claim.claim_id,
-             requirement_id: reqNode.id,
-             completeness,
-             nodes: [],
-             edges: []
-          });
        }
+
+       // Sort by score descending and take top 8 matches
+       matches.sort((a, b) => b.score - a.score);
+       const topMatches = matches.slice(0, 8);
+
+       const connectedNodes: string[] = [];
+       const connectedEdges: string[] = [];
+
+       for (const m of topMatches) {
+          const edgeId = `EDGE-${reqNode.id}-${m.nodeId}`;
+          this.graph.addEdge({
+            edge_id: edgeId,
+            from: reqNode.id,
+            to: m.nodeId,
+            type: 'REQUIREMENT_SUPPORTED_BY',
+            confidence: Math.min(1.0, 0.4 + m.score * 0.05),
+            evidence_refs: m.evidenceRefs
+          });
+          connectedNodes.push(m.nodeId);
+          connectedEdges.push(edgeId);
+
+          // If there are associated evidence refs not in the graph edge targets, connect them directly
+          for (const evRef of m.evidenceRefs) {
+             if (this.graph.hasNode(evRef) && evRef !== m.nodeId) {
+                const evEdgeId = `EDGE-${reqNode.id}-${evRef}`;
+                this.graph.addEdge({
+                  edge_id: evEdgeId,
+                  from: reqNode.id,
+                  to: evRef,
+                  type: 'REQUIREMENT_SUPPORTED_BY',
+                  confidence: Math.min(1.0, 0.4 + m.score * 0.05),
+                  evidence_refs: [evRef]
+                });
+                connectedNodes.push(evRef);
+                connectedEdges.push(evEdgeId);
+             }
+          }
+       }
+
+       let completeness: CompletenessStatus = 'UNRESOLVED';
+       if (topMatches.length >= 2 && hasExecution) {
+          completeness = 'COMPLETE';
+       } else if (topMatches.length > 0) {
+          completeness = 'PARTIAL';
+       }
+
+       this.graph.addClaimChain({
+          claim_id: claim.claim_id,
+          requirement_id: reqNode.id,
+          completeness,
+          nodes: Array.from(new Set(connectedNodes)),
+          edges: Array.from(new Set(connectedEdges))
+       });
     }
 
     return this.graph;

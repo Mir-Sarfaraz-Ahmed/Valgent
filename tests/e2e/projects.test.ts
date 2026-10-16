@@ -89,8 +89,9 @@ describe('Project Management API & Store', () => {
   });
 
   it('4. Enforces per-user project isolation via x-user-id header', async () => {
-    const aliceId = 'user-alice-test-111';
-    const bobId = 'user-bob-test-222';
+    const runNonce = Date.now();
+    const aliceId = `user-alice-test-${runNonce}`;
+    const bobId = `user-bob-test-${runNonce}`;
 
     // 1. Alice starts with 0 projects
     const aliceInitial = await request(app)

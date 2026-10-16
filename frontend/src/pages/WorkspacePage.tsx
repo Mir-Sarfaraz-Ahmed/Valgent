@@ -136,7 +136,7 @@ export const WorkspacePage: React.FC = () => {
     setIsLoadingProject(true);
     const id = projectId;
     if (id) {
-      if (['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(id)) {
+      if (['proj-valgent-demo', 'proj-campusconnect'].includes(id)) {
         navigate('/projects', { replace: true });
         setIsLoadingProject(false);
         return;
