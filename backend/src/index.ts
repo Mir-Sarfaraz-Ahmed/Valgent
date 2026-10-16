@@ -15,6 +15,12 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', service: 'valgent-agent' });
 });
 
+// Root route: Redirect to frontend (preserves auth tokens and hash fragments)
+app.get('/', (req, res) => {
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  res.redirect(302, frontendUrl);
+});
+
 // API Routes
 app.use('/api/v1', apiRoutes);
 
