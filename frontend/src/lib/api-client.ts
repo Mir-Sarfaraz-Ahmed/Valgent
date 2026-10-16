@@ -65,309 +65,7 @@ export interface ProjectsFetchResult {
 // Isolated Reference Fixtures (Used strictly when backend server is offline)
 // ---------------------------------------------------------------------------
 
-function buildReferenceDemoReport(
-  projId: string,
-  _name: string,
-  repoUrl: string,
-  commitSha: string
-): ProjectReport {
-  const claims: ClaimValidation[] = [
-    {
-      claim_id: 'CLM-01',
-      text: 'Google sign-in and OAuth authentication is implemented',
-      status: 'VERIFIED',
-      reason: 'Found Supabase Google OAuth integration in src/lib/supabase.ts and src/context/AuthContext.tsx with redirect handling.',
-      evidence_ids: ['EVD-01', 'EVD-02'],
-      evidence_items: [
-        {
-          evidence_id: 'EVD-01',
-          source: 'TypeScript Semantic AST',
-          path: 'src/lib/supabase.ts',
-          line_start: 7,
-          line_end: 18,
-          snippet: 'export const supabase = createClient(supabaseUrl, supabaseAnonKey, { auth: { detectSessionInUrl: true } });',
-          classification: 'IMPLEMENTATION',
-          description: 'Supabase client instantiation with OAuth redirect session detection enabled.',
-        },
-        {
-          evidence_id: 'EVD-02',
-          source: 'TypeScript Semantic AST',
-          path: 'src/context/AuthContext.tsx',
-          line_start: 95,
-          line_end: 110,
-          snippet: 'await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: ... } });',
-          classification: 'IMPLEMENTATION',
-          description: 'Google OAuth provider dispatch method with explicit redirect callback.',
-        },
-      ],
-      recommended_actions: ['Configure Google Cloud Console OAuth consent screen callback origins for production deployment.']
-    },
-    {
-      claim_id: 'CLM-02',
-      text: 'REST API routes for project analysis are detected',
-      status: 'VERIFIED',
-      reason: 'Router endpoints found for /health and /api/v1/analyze matching Express router specifications.',
-      evidence_ids: ['EVD-03'],
-      evidence_items: [
-        {
-          evidence_id: 'EVD-03',
-          source: 'Route Extraction',
-          path: 'src/api/routes.ts',
-          line_start: 60,
-          line_end: 105,
-          snippet: 'router.post("/analyze", async (req: Request, res: Response) => { ... });',
-          classification: 'API_ROUTE',
-          description: 'Express POST /analyze route definition with Zod schema verification.',
-        },
-      ],
-      recommended_actions: ['Implement rate-limiting middleware on the /analyze endpoint to prevent denial-of-service.']
-    },
-    {
-      claim_id: 'CLM-03',
-      text: 'Payment gateway integration with Stripe or Razorpay',
-      status: 'NOT_VERIFIED',
-      reason: 'No payment SDKs or checkout webhook handlers detected in dependencies or codebase AST.',
-      evidence_ids: ['EVD-04'],
-      evidence_items: [
-        {
-          evidence_id: 'EVD-04',
-          source: 'Dependency & Symbol Scan',
-          path: 'package.json',
-          line_start: 17,
-          line_end: 25,
-          snippet: 'dependencies: { "@google/genai", "dotenv", "express", "zod" }',
-          classification: 'MISSING_DEPENDENCY',
-          description: 'Stripe, Razorpay, or payment webhooks absent from package manifest and source tree.',
-        },
-      ],
-      contradictions: ['README mentions paid tiers, but payment processing modules are non-existent.'],
-      recommended_actions: [
-        'Install @stripe/stripe-js and stripe package',
-        'Create POST /api/v1/checkout session route',
-        'Implement webhook signature validation endpoint'
-      ]
-    },
-    {
-      claim_id: 'CLM-04',
-      text: 'Build and tests pass without errors in sandbox',
-      status: 'PARTIALLY_VERIFIED',
-      reason: 'TypeScript compilation succeeds; unit tests pass, but sandbox Docker execution was skipped in local policy.',
-      evidence_ids: ['EVD-05', 'EVD-06'],
-      evidence_items: [
-        {
-          evidence_id: 'EVD-05',
-          source: 'Jest Test Runner',
-          path: 'tests/validation.test.ts',
-          line_start: 1,
-          line_end: 50,
-          snippet: 'PASS tests/validation.test.ts (14 tests passed, 0 failed)',
-          classification: 'TEST_EXECUTION',
-          description: 'Jest execution telemetry confirmed 14 passing validation assertions.',
-        },
-        {
-          evidence_id: 'EVD-06',
-          source: 'Docker Sandbox Telemetry',
-          path: 'src/sandbox/docker.ts',
-          snippet: 'Container launch skipped: execution_policy.allow_sandbox set to false in local run.',
-          classification: 'EXECUTION_SKIPPED',
-          description: 'Live containerized test execution was skipped per local safety policy.',
-        },
-      ],
-      limitations: ['Sandbox container was not launched; tests verified in host environment only.'],
-      recommended_actions: [
-        'Set execution_policy.allow_build: true in analysis options',
-        'Ensure Docker daemon is reachable on analysis worker'
-      ]
-    },
-    {
-      claim_id: 'CLM-05',
-      text: 'Responsive design and Night Mode theme toggling',
-      status: 'VERIFIED',
-      reason: 'ThemeContext, CSS variables for dark theme, and mobile viewport responsive breakpoints confirmed.',
-      evidence_ids: ['EVD-07'],
-      evidence_items: [
-        {
-          evidence_id: 'EVD-07',
-          source: 'CSS & DOM Parser',
-          path: 'src/index.css',
-          line_start: 35,
-          line_end: 75,
-          snippet: '[data-theme="dark"] { --surface-page: #120711; --text-primary: #FDEBF0; ... }',
-          classification: 'UI_THEME',
-          description: 'Dark theme variables and ThemeToggle button integrated across layout headers.',
-        },
-      ],
-      recommended_actions: ['Ensure color contrast meets WCAG AAA standards on high-contrast displays.']
-    },
-  ];
-
-  const evidence: EvidenceReference[] = claims.flatMap((c) => c.evidence_items || []);
-
-  const roadmap: RoadmapTask[] = [
-    {
-      id: 'TASK-01',
-      claim_id: 'CLM-03',
-      title: 'Add payment gateway integration',
-      problem: 'README promises commercial checkout, but no payment provider SDK or webhooks are present.',
-      priority: 'HIGH',
-      evidence_refs: ['EVD-04'],
-      recommended_actions: [
-        'Install @stripe/stripe-js and stripe package',
-        'Create POST /api/v1/checkout session route',
-        'Implement webhook signature validation endpoint',
-      ],
-      acceptance_criteria: [
-        'Checkout endpoint creates verified session ID',
-        'Webhook listener safely updates project subscription state',
-      ],
-      status: 'PENDING',
-    },
-    {
-      id: 'TASK-02',
-      claim_id: 'CLM-04',
-      title: 'Enable isolated Docker sandbox verification',
-      problem: 'Build tests passed on host, but isolated container execution was skipped.',
-      priority: 'MEDIUM',
-      evidence_refs: ['EVD-06'],
-      recommended_actions: [
-        'Set execution_policy.allow_build: true in analysis options',
-        'Ensure Docker daemon is reachable on analysis worker',
-      ],
-      acceptance_criteria: [
-        'Docker container executes tests with read-only root and PID limits',
-      ],
-      status: 'IN_PROGRESS',
-    },
-    {
-      id: 'TASK-03',
-      title: 'Configure CI/CD automated validation workflow',
-      problem: 'No GitHub Actions workflow found under .github/workflows for automated pull request checks.',
-      priority: 'MEDIUM',
-      evidence_refs: [],
-      recommended_actions: [
-        'Add .github/workflows/valgent-verify.yml',
-        'Run lint, build, and test steps on push to main branch',
-      ],
-      acceptance_criteria: [
-        'GitHub Actions status badge returns passing on repository head',
-      ],
-      status: 'PENDING',
-    },
-    {
-      id: 'TASK-04',
-      title: 'Add production environment variables configuration',
-      problem: 'Only sample development values exist; production secrets manager setup is undocumented.',
-      priority: 'LOW',
-      evidence_refs: [],
-      recommended_actions: [
-        'Document required production secrets in backend deployment guide',
-        'Configure Doppler or GCP Secret Manager for API keys',
-      ],
-      acceptance_criteria: [
-        'Health check verifies presence of production secrets without leaking values',
-      ],
-      status: 'PENDING',
-    },
-  ];
-
-  const graph: EvidenceGraphData = {
-    nodes: [
-      { id: 'node-clm-1', type: 'claim', label: 'Google Auth', status: 'VERIFIED' },
-      { id: 'node-clm-2', type: 'claim', label: 'API Routes', status: 'VERIFIED' },
-      { id: 'node-clm-3', type: 'claim', label: 'Payment Gateway', status: 'NOT_VERIFIED' },
-      { id: 'node-clm-4', type: 'claim', label: 'Sandbox Execution', status: 'PARTIALLY_VERIFIED' },
-      { id: 'node-clm-5', type: 'claim', label: 'Night Mode Theme', status: 'VERIFIED' },
-      { id: 'node-evd-1', type: 'symbol', label: 'supabase.ts', sublabel: 'src/lib/supabase.ts' },
-      { id: 'node-evd-2', type: 'symbol', label: 'AuthContext.tsx', sublabel: 'src/context/AuthContext.tsx' },
-      { id: 'node-evd-3', type: 'route', label: 'POST /analyze', sublabel: 'src/api/routes.ts' },
-      { id: 'node-evd-4', type: 'evidence', label: 'package.json', sublabel: 'No payment dependencies' },
-      { id: 'node-evd-5', type: 'execution', label: 'Jest Test Runner', sublabel: '14 tests passed' },
-    ],
-    edges: [
-      { id: 'edge-1', source: 'node-clm-1', target: 'node-evd-1', relation: 'verified_by' },
-      { id: 'edge-2', source: 'node-clm-1', target: 'node-evd-2', relation: 'verified_by' },
-      { id: 'edge-3', source: 'node-clm-2', target: 'node-evd-3', relation: 'verified_by' },
-      { id: 'edge-4', source: 'node-clm-3', target: 'node-evd-4', relation: 'contradicted_by' },
-      { id: 'edge-5', source: 'node-clm-4', target: 'node-evd-5', relation: 'supported_by' },
-    ],
-  };
-
-  return {
-    schema_version: '1.0.0',
-    analysis_run_id: 'run_' + Math.random().toString(36).substring(2, 9),
-    project_id: projId,
-    repository_url: repoUrl,
-    commit_sha: commitSha,
-    branch: 'main',
-    timestamp: new Date().toISOString(),
-    duration_ms: 14250,
-    status: 'COMPLETED',
-    summary: {
-      total_claims: 5,
-      verified_count: 3,
-      partially_verified_count: 1,
-      not_verified_count: 1,
-      insufficient_evidence_count: 0,
-    },
-    claims,
-    evidence,
-    graph,
-    roadmap,
-    architecture: {
-      components: ['AuthContext', 'AnalyzePipeline', 'EvidenceGraph', 'ThemeToggle'],
-      entry_points: ['src/index.ts', 'src/main.tsx'],
-      api_routes: ['GET /health', 'POST /api/v1/analyze'],
-      databases: ['Supabase Auth & PostgreSQL Session Store'],
-    },
-    diagnostics: {
-      warnings: ['Docker container isolation was skipped for local verification run.'],
-      errors: [],
-      provider_info: 'Gemini 3.8 Flash + Static TypeScript Compiler AST',
-    },
-  };
-}
-
-export const DEMO_FIXTURES: Project[] = [
-  {
-    id: 'proj-valgent-demo',
-    name: 'Valgent Demo',
-    description: 'AI-powered project validation platform with AST semantic analysis',
-    repositoryUrl: 'https://github.com/valgent/demo',
-    branch: 'main',
-    commitSha: '9f2a1c7',
-    status: 'in_progress',
-    lastAnalyzedAt: '2026-10-11T14:30:00Z',
-    createdAt: '2026-10-10T10:00:00Z',
-    ownerId: 'default',
-    latestReport: buildReferenceDemoReport('proj-valgent-demo', 'Valgent Demo', 'https://github.com/valgent/demo', '9f2a1c7'),
-  },
-  {
-    id: 'proj-civicpulse-ai',
-    name: 'CivicPulse AI',
-    description: 'Civic engagement and feedback platform for municipal transparency',
-    repositoryUrl: 'https://github.com/Mir-Sarfaraz-Ahmed/civicpulse-ai.git',
-    branch: 'main',
-    commitSha: 'a3c7e9d',
-    status: 'needs_review',
-    lastAnalyzedAt: '2026-10-10T18:15:00Z',
-    createdAt: '2026-10-09T08:00:00Z',
-    ownerId: 'default',
-    latestReport: buildReferenceDemoReport('proj-civicpulse-ai', 'CivicPulse AI', 'https://github.com/Mir-Sarfaraz-Ahmed/civicpulse-ai.git', 'a3c7e9d'),
-  },
-  {
-    id: 'proj-campusconnect',
-    name: 'CampusConnect',
-    description: 'Student community and event platform with peer tutoring',
-    repositoryUrl: 'https://github.com/campus/connect',
-    branch: 'dev',
-    commitSha: '5b8d2f1',
-    status: 'completed',
-    lastAnalyzedAt: '2026-10-09T11:20:00Z',
-    createdAt: '2026-10-08T12:00:00Z',
-    ownerId: 'default',
-    latestReport: buildReferenceDemoReport('proj-campusconnect', 'CampusConnect', 'https://github.com/campus/connect', '5b8d2f1'),
-  },
-];
+export const DEMO_FIXTURES: Project[] = [];
 
 // ---------------------------------------------------------------------------
 // Normalization Engine: Real Backend Payload -> Clean Frontend Model
@@ -521,9 +219,12 @@ export const ProjectService = {
       try {
         const supaProjects = await SupabaseService.getProjects(userId);
         if (supaProjects !== null) {
-          localStorage.setItem(cacheKey, JSON.stringify(supaProjects));
+          const cleanProjects = supaProjects.filter(
+            p => !['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(p.id)
+          );
+          localStorage.setItem(cacheKey, JSON.stringify(cleanProjects));
           return {
-            projects: supaProjects,
+            projects: cleanProjects,
             isOfflineFallback: false,
           };
         }
@@ -550,21 +251,22 @@ export const ProjectService = {
       const data = await res.json();
       const rawList = Array.isArray(data.projects) ? data.projects : [];
 
-      const serverProjects: Project[] = rawList.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        description: p.description || '',
-        repositoryUrl: p.repositoryUrl,
-        branch: p.branch || 'main',
-        commitSha: p.commitSha || 'latest',
-        status: (p.status as ProjectStatus) || 'in_progress',
-        lastAnalyzedAt: p.lastAnalyzedAt || p.updatedAt || p.createdAt,
-        createdAt: p.createdAt,
-        ownerId: p.ownerId || userId || 'default',
-        latestReport: p.latestReport ? normalizeBackendReport(p.latestReport, p.repositoryUrl) : undefined,
-      }));
+      const serverProjects: Project[] = rawList
+        .filter((p: any) => !['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(p.id))
+        .map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          description: p.description || '',
+          repositoryUrl: p.repositoryUrl,
+          branch: p.branch || 'main',
+          commitSha: p.commitSha || 'latest',
+          status: (p.status as ProjectStatus) || 'in_progress',
+          lastAnalyzedAt: p.lastAnalyzedAt || p.updatedAt || p.createdAt,
+          createdAt: p.createdAt,
+          ownerId: p.ownerId || userId || 'default',
+          latestReport: p.latestReport ? normalizeBackendReport(p.latestReport, p.repositoryUrl) : undefined,
+        }));
 
-      // Cache successful response in localStorage for offline resilience
       localStorage.setItem(cacheKey, JSON.stringify(serverProjects));
 
       return {
@@ -572,19 +274,19 @@ export const ProjectService = {
         isOfflineFallback: false,
       };
     } catch (err: any) {
-      console.warn('[ProjectService] Backend unreachable, using isolated offline cache:', err?.message);
+      console.warn('[ProjectService] Backend unreachable, checking offline cache:', err?.message);
 
-      // Check offline cache or DEMO_FIXTURES
       const cached = localStorage.getItem(cacheKey);
       let fallbackList: Project[] = [];
       if (cached) {
         try {
-          fallbackList = JSON.parse(cached);
+          const parsed = JSON.parse(cached);
+          fallbackList = (Array.isArray(parsed) ? parsed : []).filter(
+            (p: Project) => !['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(p.id)
+          );
         } catch {
           fallbackList = [];
         }
-      } else if (!userId) {
-        fallbackList = DEMO_FIXTURES;
       }
 
       return {
@@ -599,6 +301,9 @@ export const ProjectService = {
    * Fetch a single project by ID from backend or Supabase.
    */
   async getProjectById(id: string, ownerId?: string): Promise<Project | null> {
+    if (['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(id)) {
+      return null;
+    }
     const userId = ownerId || getCurrentUserId();
     const cacheKey = userId ? `valgent-server-projects-cache-${userId}` : 'valgent-server-projects-cache';
 
@@ -606,7 +311,9 @@ export const ProjectService = {
     if (userId) {
       try {
         const supaProject = await SupabaseService.getProjectById(id, userId);
-        if (supaProject) return supaProject;
+        if (supaProject && !['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(supaProject.id)) {
+          return supaProject;
+        }
       } catch {
         // Continue to backend fallback
       }
@@ -630,6 +337,10 @@ export const ProjectService = {
       }
 
       const p = await res.json();
+      if (['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(p.id)) {
+        return null;
+      }
+
       return {
         id: p.id,
         name: p.name,
@@ -644,15 +355,21 @@ export const ProjectService = {
         latestReport: p.latestReport ? normalizeBackendReport(p.latestReport, p.repositoryUrl) : undefined,
       };
     } catch {
-      // Fallback search in cache or DEMO_FIXTURES
       const cached = localStorage.getItem(cacheKey);
-      const list = cached ? JSON.parse(cached) : (!userId ? DEMO_FIXTURES : []);
-      return list.find((p: Project) => p.id === id) || null;
+      if (cached) {
+        try {
+          const list: Project[] = JSON.parse(cached);
+          return list.find((p: Project) => p.id === id && !['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(p.id)) || null;
+        } catch {
+          return null;
+        }
+      }
+      return null;
     }
   },
 
   /**
-   * Create a project via real POST /api/v1/projects.
+   * Create a project via real POST /api/v1/projects and sync to Supabase.
    */
   async createProject(name: string, repositoryUrl: string, branch = 'main', description = '', ownerId?: string): Promise<Project> {
     if (!name.trim()) {
@@ -662,6 +379,23 @@ export const ProjectService = {
       throw new Error('Repository URL is required');
     }
     const userId = ownerId || getCurrentUserId();
+    const projectId = `proj-${crypto.randomUUID().substring(0, 8)}`;
+
+    let supaCreated: Project | null = null;
+    if (userId) {
+      try {
+        supaCreated = await SupabaseService.createProject({
+          id: projectId,
+          name: name.trim(),
+          repositoryUrl: repositoryUrl.trim(),
+          branch: branch.trim() || 'main',
+          description: description.trim(),
+          ownerId: userId,
+        });
+      } catch (err) {
+        console.warn('[ProjectService] Supabase createProject warning:', err);
+      }
+    }
 
     try {
       const res = await fetch(`${API_BASE_URL}/projects`, {
@@ -672,6 +406,7 @@ export const ProjectService = {
           ...(userId ? { 'x-user-id': userId } : {})
         },
         body: JSON.stringify({
+          id: supaCreated ? supaCreated.id : projectId,
           name: name.trim(),
           repositoryUrl: repositoryUrl.trim(),
           branch: branch.trim() || 'main',
@@ -680,100 +415,130 @@ export const ProjectService = {
         }),
       });
 
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => null);
-        throw new Error(errJson?.error || `Failed to create project (HTTP ${res.status})`);
+      if (res.ok) {
+        const p = await res.json();
+        const createdProject: Project = {
+          id: p.id,
+          name: p.name,
+          description: p.description || '',
+          repositoryUrl: p.repositoryUrl,
+          branch: p.branch || 'main',
+          commitSha: p.commitSha || 'initial',
+          status: (p.status as ProjectStatus) || 'in_progress',
+          lastAnalyzedAt: p.lastAnalyzedAt || p.createdAt,
+          createdAt: p.createdAt,
+          ownerId: p.ownerId || userId || 'default',
+        };
+
+        const cacheKey = userId ? `valgent-server-projects-cache-${userId}` : 'valgent-server-projects-cache';
+        const cached = localStorage.getItem(cacheKey);
+        const list: Project[] = cached ? JSON.parse(cached) : [];
+        localStorage.setItem(cacheKey, JSON.stringify([createdProject, ...list]));
+
+        return createdProject;
       }
-
-      const p = await res.json();
-      const createdProject: Project = {
-        id: p.id,
-        name: p.name,
-        description: p.description || '',
-        repositoryUrl: p.repositoryUrl,
-        branch: p.branch || 'main',
-        commitSha: p.commitSha || 'initial',
-        status: (p.status as ProjectStatus) || 'in_progress',
-        lastAnalyzedAt: p.lastAnalyzedAt || p.createdAt,
-        createdAt: p.createdAt,
-        ownerId: p.ownerId || userId || 'default',
-      };
-
-      // Also persist to Supabase directly if user is authenticated
-      if (userId) {
-        SupabaseService.createProject({
-          id: createdProject.id,
-          name: createdProject.name,
-          repositoryUrl: createdProject.repositoryUrl,
-          branch: createdProject.branch,
-          description: createdProject.description,
-          ownerId: userId,
-        }).catch(() => {});
-      }
-
-      return createdProject;
     } catch (err: any) {
-      if (err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError')) {
-        throw new Error('Valgent backend is unreachable. Please verify server is running on port 3000.');
-      }
-      throw err;
+      console.warn('[ProjectService] Backend register warning:', err);
     }
+
+    if (supaCreated) {
+      return supaCreated;
+    }
+
+    throw new Error('Failed to create project on server or database.');
   },
 
   /**
-   * Update project fields via PATCH /api/v1/projects/:id.
+   * Update project fields via PATCH /api/v1/projects/:id and Supabase.
    */
   async updateProject(
     id: string,
-    patch: Partial<{ name: string; description: string; branch: string; status: ProjectStatus; repositoryUrl: string }>,
+    patch: Partial<{ name: string; description: string; branch: string; status: ProjectStatus; repositoryUrl: string; latestReport: ProjectReport }>,
     ownerId?: string
   ): Promise<Project> {
     const userId = ownerId || getCurrentUserId();
-    const res = await fetch(`${API_BASE_URL}/projects/${id}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...(userId ? { 'x-user-id': userId } : {})
-      },
-      body: JSON.stringify(patch),
-    });
 
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => null);
-      throw new Error(errJson?.error || `Failed to update project (HTTP ${res.status})`);
-    }
-
+    // 1. Update in Supabase if authenticated
     if (userId) {
-      SupabaseService.updateProject(id, patch).catch(() => {});
+      try {
+        await SupabaseService.updateProject(id, patch);
+      } catch (err) {
+        console.warn('[ProjectService] Supabase updateProject warning:', err);
+      }
     }
 
-    const p = await res.json();
-    return {
-      id: p.id,
-      name: p.name,
-      description: p.description || '',
-      repositoryUrl: p.repositoryUrl,
-      branch: p.branch || 'main',
-      commitSha: p.commitSha || 'latest',
-      status: (p.status as ProjectStatus) || 'in_progress',
-      lastAnalyzedAt: p.lastAnalyzedAt || p.updatedAt,
-      createdAt: p.createdAt,
-      ownerId: p.ownerId || userId || 'default',
-      latestReport: p.latestReport ? normalizeBackendReport(p.latestReport, p.repositoryUrl) : undefined,
-    };
+    // 2. Update in Backend
+    let backendProject: Project | null = null;
+    try {
+      const res = await fetch(`${API_BASE_URL}/projects/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...(userId ? { 'x-user-id': userId } : {})
+        },
+        body: JSON.stringify(patch),
+      });
+
+      if (res.ok) {
+        const p = await res.json();
+        backendProject = {
+          id: p.id,
+          name: p.name,
+          description: p.description || '',
+          repositoryUrl: p.repositoryUrl,
+          branch: p.branch || 'main',
+          commitSha: p.commitSha || 'latest',
+          status: (p.status as ProjectStatus) || 'in_progress',
+          lastAnalyzedAt: p.lastAnalyzedAt || p.updatedAt,
+          createdAt: p.createdAt,
+          ownerId: p.ownerId || userId || 'default',
+          latestReport: p.latestReport ? normalizeBackendReport(p.latestReport, p.repositoryUrl) : undefined,
+        };
+      }
+    } catch (err) {
+      console.warn('[ProjectService] Backend updateProject warning:', err);
+    }
+
+    // Update in local cache
+    const cacheKey = userId ? `valgent-server-projects-cache-${userId}` : 'valgent-server-projects-cache';
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const list: Project[] = JSON.parse(cached);
+        const updatedList = list.map(p => p.id === id ? { ...p, ...patch } : p);
+        localStorage.setItem(cacheKey, JSON.stringify(updatedList));
+      } catch {
+        // ignore
+      }
+    }
+
+    if (backendProject) return backendProject;
+
+    const existing = await this.getProjectById(id, userId);
+    if (existing) {
+      return {
+        ...existing,
+        ...patch,
+      };
+    }
+
+    throw new Error('Failed to update project');
   },
 
   /**
-   * Delete project via real DELETE /api/v1/projects/:id.
+   * Delete project via real DELETE /api/v1/projects/:id and Supabase.
    */
   async deleteProject(id: string, ownerId?: string): Promise<boolean> {
     const userId = ownerId || getCurrentUserId();
     const cacheKey = userId ? `valgent-server-projects-cache-${userId}` : 'valgent-server-projects-cache';
 
-    // Also delete from Supabase
     if (userId) {
-      SupabaseService.deleteProject(id).catch(() => {});
+      try {
+        await SupabaseService.deleteProject(id);
+      } catch (err) {
+        console.warn('[ProjectService] Supabase deleteProject warning:', err);
+      }
     }
 
     try {
@@ -788,26 +553,27 @@ export const ProjectService = {
       if (!res.ok && res.status !== 404) {
         throw new Error(`Failed to delete project (HTTP ${res.status})`);
       }
-
-      // Also remove from user's offline cache
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        try {
-          const list: Project[] = JSON.parse(cached);
-          const filtered = list.filter((p) => p.id !== id);
-          localStorage.setItem(cacheKey, JSON.stringify(filtered));
-        } catch {
-          // ignore cache parse error
-        }
-      }
-
-      return true;
-    } catch (err: any) {
-      if (err?.message?.includes('Failed to fetch')) {
-        throw new Error('Backend server is unreachable. Cannot delete project.');
-      }
-      throw err;
+    } catch (err) {
+      console.warn('[ProjectService] Backend delete warning:', err);
     }
+
+    // Clean up local cache
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const list: Project[] = JSON.parse(cached);
+        const filtered = list.filter((p) => p.id !== id);
+        localStorage.setItem(cacheKey, JSON.stringify(filtered));
+      } catch {
+        // ignore
+      }
+    }
+
+    if (localStorage.getItem('valgent-last-active-project-id') === id) {
+      localStorage.removeItem('valgent-last-active-project-id');
+    }
+
+    return true;
   },
 
   /**

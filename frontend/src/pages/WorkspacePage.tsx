@@ -31,10 +31,12 @@ import {
   AlertCircle,
   AlertTriangle,
   Info,
-  Network
+  Network,
+  FolderGit2
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { StatusBadge } from '../components/ui/StatusBadge';
+import { EmptyState } from '../components/ui/EmptyState';
 
 export const WorkspacePage: React.FC = () => {
   const { projectId, tab = 'overview' } = useParams<{ projectId?: string; tab?: string }>();
@@ -42,8 +44,11 @@ export const WorkspacePage: React.FC = () => {
   const { user } = useAuth();
 
   const [project, setProject] = useState<Project | null>(null);
+  const [isLoadingProject, setIsLoadingProject] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>(tab || 'overview');
   const [repoUrlInput, setRepoUrlInput] = useState<string>('');
+  const [isSavingRepoUrl, setIsSavingRepoUrl] = useState<boolean>(false);
+  const [repoUrlSaved, setRepoUrlSaved] = useState<boolean>(false);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [analysisError, setAnalysisError] = useState<ApiError | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
@@ -81,21 +86,35 @@ export const WorkspacePage: React.FC = () => {
   }, [project?.id]);
 
   const loadProject = useCallback(async () => {
+    setIsLoadingProject(true);
     const id = projectId;
     if (id) {
+      if (['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(id)) {
+        navigate('/projects', { replace: true });
+        setIsLoadingProject(false);
+        return;
+      }
       const found = await ProjectService.getProjectById(id, user?.id);
       if (found) {
         setProject(found);
         setRepoUrlInput(found.repositoryUrl);
+        localStorage.setItem('valgent-last-active-project-id', found.id);
+        setIsLoadingProject(false);
         return;
       }
     }
     const fallbackList = await ProjectService.getProjects(user?.id);
     if (fallbackList.projects.length > 0) {
-      setProject(fallbackList.projects[0]);
-      setRepoUrlInput(fallbackList.projects[0].repositoryUrl);
+      const first = fallbackList.projects[0];
+      setProject(first);
+      setRepoUrlInput(first.repositoryUrl);
+      localStorage.setItem('valgent-last-active-project-id', first.id);
+      navigate(`/projects/${first.id}/${tab || 'overview'}`, { replace: true });
+    } else {
+      setProject(null);
     }
-  }, [projectId, user?.id]);
+    setIsLoadingProject(false);
+  }, [projectId, user?.id, navigate, tab]);
 
   useEffect(() => {
     loadProject();
@@ -111,6 +130,41 @@ export const WorkspacePage: React.FC = () => {
     setActiveTab(newTab);
     if (project) {
       navigate(`/projects/${project.id}/${newTab}`);
+    }
+  };
+
+  const handleSaveRepoUrl = async () => {
+    if (!project) return;
+    const targetRepo = repoUrlInput.trim();
+    if (!targetRepo.startsWith('http://') && !targetRepo.startsWith('https://')) {
+      setAnalysisError({
+        code: 'INVALID_URL',
+        message: 'A valid public repository URL (http:// or https://) is required.',
+        stage: 'REQUEST_VALIDATION',
+      });
+      return;
+    }
+
+    setIsSavingRepoUrl(true);
+    setAnalysisError(null);
+    try {
+      const updated = await ProjectService.updateProject(
+        project.id,
+        { repositoryUrl: targetRepo },
+        user?.id
+      );
+      setProject(updated);
+      setRepoUrlSaved(true);
+      setNoticeMessage('Target repository URL successfully saved and synchronized.');
+      setTimeout(() => setRepoUrlSaved(false), 3000);
+    } catch (err: any) {
+      setAnalysisError({
+        code: 'SYNC_ERROR',
+        message: err?.message || 'Failed to persist repository URL to database.',
+        stage: 'DATABASE_SYNC',
+      });
+    } finally {
+      setIsSavingRepoUrl(false);
     }
   };
 
@@ -132,6 +186,21 @@ export const WorkspacePage: React.FC = () => {
     setNoticeMessage(null);
 
     try {
+      // 1. Immediately persist target repository URL if changed
+      if (targetRepo !== project.repositoryUrl) {
+        try {
+          await ProjectService.updateProject(
+            project.id,
+            { repositoryUrl: targetRepo },
+            user?.id
+          );
+          setProject((prev) => (prev ? { ...prev, repositoryUrl: targetRepo } : prev));
+        } catch (saveErr) {
+          console.warn('Non-fatal error updating repo URL before analysis:', saveErr);
+        }
+      }
+
+      // 2. Run analysis
       const result = await ProjectService.analyze({
         repository_url: targetRepo,
         project_id: project.id,
@@ -150,6 +219,18 @@ export const WorkspacePage: React.FC = () => {
           latestReport: result.report,
         };
         setProject(updatedProject);
+
+        // 3. Persist latest report and status to Supabase and Backend
+        await ProjectService.updateProject(
+          project.id,
+          {
+            repositoryUrl: targetRepo,
+            status: 'completed',
+            latestReport: result.report,
+          },
+          user?.id
+        ).catch(() => {});
+
         setNoticeMessage(
           `Verification complete. ${result.report.summary.verified_count} of ${result.report.summary.total_claims} claims verified against repository AST.`
         );
@@ -220,12 +301,37 @@ export const WorkspacePage: React.FC = () => {
     }
   };
 
-  if (!project) {
+  if (isLoadingProject) {
     return (
       <div className="min-h-screen flex items-center justify-center p-8 bg-[var(--surface-page)]">
         <div className="flex items-center gap-3 text-sm text-[var(--text-muted)] animate-pulse">
           <RefreshCw className="w-5 h-5 animate-spin text-[var(--color-mauve)]" />
           <span>Loading project workspace...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!project) {
+    return (
+      <div className="min-h-screen flex bg-[var(--surface-page)] text-[var(--text-primary)]">
+        <AppSidebar
+          isOpen={isMobileMenuOpen}
+          onClose={() => setIsMobileMenuOpen(false)}
+        />
+        <div className="flex-1 flex flex-col min-w-0">
+          <main className="w-full max-w-4xl mx-auto px-6 py-20 flex flex-col items-center justify-center text-center">
+            <EmptyState
+              title="No Project Selected"
+              description="No active project was found. Select an existing project or create a new one to run AST verification."
+              icon={<FolderGit2 className="w-8 h-8 text-[var(--color-mauve)]" />}
+              action={{
+                label: 'View Projects',
+                onClick: () => navigate('/projects'),
+                icon: <ArrowRight className="w-4 h-4" />,
+              }}
+            />
+          </main>
         </div>
       </div>
     );
@@ -477,11 +583,30 @@ export const WorkspacePage: React.FC = () => {
                     <input
                       type="text"
                       value={repoUrlInput}
-                      onChange={(e) => setRepoUrlInput(e.target.value)}
+                      onChange={(e) => {
+                        setRepoUrlInput(e.target.value);
+                        setRepoUrlSaved(false);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSaveRepoUrl();
+                        }
+                      }}
                       className="text-xs sm:text-sm font-mono text-[var(--text-primary)] bg-transparent border-none outline-none w-full"
                       placeholder="https://github.com/organization/repository"
                     />
                   </div>
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    onClick={handleSaveRepoUrl}
+                    isLoading={isSavingRepoUrl}
+                    disabled={isAnalyzing || !repoUrlInput.trim() || repoUrlInput.trim() === project.repositoryUrl}
+                    leftIcon={<CheckCircle2 className="w-4 h-4 text-[var(--color-dusty-rose)]" />}
+                  >
+                    {repoUrlSaved ? 'Saved' : 'Save URL'}
+                  </Button>
                   <Button
                     variant="primary"
                     size="md"

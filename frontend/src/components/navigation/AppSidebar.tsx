@@ -18,7 +18,9 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   onClose,
 }) => {
   const params = useParams<{ projectId?: string }>();
-  const activeProjectId = currentProjectId || params.projectId || 'proj-valgent-demo';
+  const savedActiveId = typeof window !== 'undefined' ? localStorage.getItem('valgent-last-active-project-id') : null;
+  const rawId = currentProjectId || params.projectId || (savedActiveId && !['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(savedActiveId) ? savedActiveId : null);
+  const activeProjectId = rawId && !['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(rawId) ? rawId : null;
   const { user, signOut, updateAvatarUrl } = useAuth();
   const [isUploadingAvatar, setIsUploadingAvatar] = React.useState(false);
   const navigate = useNavigate();
@@ -51,7 +53,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 
   const navItems = [
     {
-      to: `/projects/${activeProjectId}/overview`,
+      to: activeProjectId ? `/projects/${activeProjectId}/overview` : '/projects',
       label: 'Overview',
       icon: LayoutDashboard,
       end: false,
@@ -63,19 +65,19 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       end: true,
     },
     {
-      to: `/projects/${activeProjectId}/evidence`,
+      to: activeProjectId ? `/projects/${activeProjectId}/evidence` : '/projects',
       label: 'Evidence graph',
       icon: Network,
       end: false,
     },
     {
-      to: `/projects/${activeProjectId}/reports`,
+      to: activeProjectId ? `/projects/${activeProjectId}/reports` : '/projects',
       label: 'Reports',
       icon: FileText,
       end: false,
     },
     {
-      to: `/projects/${activeProjectId}/roadmap`,
+      to: activeProjectId ? `/projects/${activeProjectId}/roadmap` : '/projects',
       label: 'Roadmap',
       icon: Map,
       end: false,

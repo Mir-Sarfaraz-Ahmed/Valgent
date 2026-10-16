@@ -401,6 +401,7 @@ router.get('/projects', (req: Request, res: Response) => {
  * Create a new project
  */
 const CreateProjectSchema = z.object({
+  id: z.string().optional(),
   name: z.string().min(1, 'Project name is required'),
   repositoryUrl: z.string().url('A valid repository URL is required'),
   branch: z.string().optional().default('main'),
@@ -446,6 +447,11 @@ router.get('/projects/:id', (req: Request, res: Response) => {
 router.patch('/projects/:id', (req: Request, res: Response) => {
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : String(req.params.id);
+    const ownerId = getOwnerId(req);
+    const existing = ProjectStore.getById(id, ownerId);
+    if (!existing) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
     const updated = ProjectStore.update(id, req.body);
     if (!updated) {
       return res.status(404).json({ error: 'Project not found' });

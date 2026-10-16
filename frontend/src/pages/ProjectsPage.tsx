@@ -126,6 +126,7 @@ export const ProjectsPage: React.FC = () => {
       setNewProjectName('');
       setNewRepoUrl('');
       setNewDescription('');
+      localStorage.setItem('valgent-last-active-project-id', created.id);
       await loadProjects();
       navigate(`/projects/${created.id}/overview`);
     } catch (err: any) {
@@ -141,6 +142,9 @@ export const ProjectsPage: React.FC = () => {
     setDeleteError(null);
     try {
       await ProjectService.deleteProject(projectToDelete.id, user?.id);
+      if (localStorage.getItem('valgent-last-active-project-id') === projectToDelete.id) {
+        localStorage.removeItem('valgent-last-active-project-id');
+      }
       setProjectToDelete(null);
       await loadProjects();
     } catch (err: any) {

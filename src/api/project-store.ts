@@ -317,66 +317,26 @@ export class ProjectStore {
         fs.mkdirSync(ProjectStore.DATA_DIR, { recursive: true });
       }
 
-      const demoReport1 = createSampleReport('proj-valgent-demo', 'https://github.com/valgent/demo', '9f2a1c7');
-      const demoReport2 = createSampleReport('proj-civicpulse-ai', 'https://github.com/Mir-Sarfaraz-Ahmed/civicpulse-ai.git', 'a3c7e9d');
-      const demoReport3 = createSampleReport('proj-campusconnect', 'https://github.com/campus/connect', '5b8d2f1');
-
       if (!fs.existsSync(ProjectStore.DATA_FILE)) {
-        const initialSeed: StoredProject[] = [
-          {
-            id: 'proj-valgent-demo',
-            name: 'Valgent Demo',
-            description: 'AI-powered project validation platform with AST semantic analysis',
-            repositoryUrl: 'https://github.com/valgent/demo',
-            branch: 'main',
-            commitSha: '9f2a1c7',
-            status: 'in_progress',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            lastAnalyzedAt: new Date().toISOString(),
-            ownerId: 'default',
-            latestReport: demoReport1,
-            reports: [demoReport1]
-          },
-          {
-            id: 'proj-civicpulse-ai',
-            name: 'CivicPulse AI',
-            description: 'Civic engagement and feedback platform for municipal transparency',
-            repositoryUrl: 'https://github.com/Mir-Sarfaraz-Ahmed/civicpulse-ai.git',
-            branch: 'main',
-            commitSha: 'a3c7e9d',
-            status: 'needs_review',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            lastAnalyzedAt: new Date().toISOString(),
-            ownerId: 'default',
-            latestReport: demoReport2,
-            reports: [demoReport2]
-          },
-          {
-            id: 'proj-campusconnect',
-            name: 'CampusConnect',
-            description: 'Student community and event platform with peer tutoring',
-            repositoryUrl: 'https://github.com/campus/connect',
-            branch: 'dev',
-            commitSha: '5b8d2f1',
-            status: 'completed',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            lastAnalyzedAt: new Date().toISOString(),
-            ownerId: 'default',
-            latestReport: demoReport3,
-            reports: [demoReport3]
-          }
-        ];
-        fs.writeFileSync(ProjectStore.DATA_FILE, JSON.stringify(initialSeed, null, 2), 'utf-8');
-        ProjectStore.memoryCache = initialSeed;
+        fs.writeFileSync(ProjectStore.DATA_FILE, JSON.stringify([], null, 2), 'utf-8');
+        ProjectStore.memoryCache = [];
         return ProjectStore.memoryCache;
       }
 
       const raw = fs.readFileSync(ProjectStore.DATA_FILE, 'utf-8');
-      ProjectStore.memoryCache = JSON.parse(raw);
-      return ProjectStore.memoryCache || [];
+      const loaded: StoredProject[] = JSON.parse(raw);
+      
+      // Production filter: permanently remove all legacy demo fixtures from storage
+      const sanitized = (Array.isArray(loaded) ? loaded : []).filter(
+        p => !['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(p.id)
+      );
+
+      ProjectStore.memoryCache = sanitized;
+      if (sanitized.length !== (Array.isArray(loaded) ? loaded.length : 0)) {
+        ProjectStore.persist();
+      }
+
+      return ProjectStore.memoryCache;
     } catch (err) {
       console.error('[ProjectStore] Failed to load projects:', err);
       ProjectStore.memoryCache = [];
@@ -401,31 +361,30 @@ export class ProjectStore {
     if (!ownerId || ownerId === 'all') {
       return [...list];
     }
-    return list.filter(p => (p.ownerId || 'default') === ownerId);
+    return list.filter(p => p.ownerId === ownerId);
   }
 
   public static getById(id: string, ownerId?: string): StoredProject | null {
+    if (['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(id)) {
+      return null;
+    }
     const list = ProjectStore.ensureLoaded();
     const found = list.find(p => p.id === id);
     if (!found) return null;
-    const projOwner = found.ownerId || 'default';
-    if (ownerId && ownerId !== 'all' && projOwner !== ownerId && projOwner !== 'default') {
+    const projOwner = found.ownerId;
+    if (ownerId && ownerId !== 'all' && projOwner && projOwner !== ownerId) {
       return null;
-    }
-    if (!found.latestReport && ['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(id)) {
-      found.latestReport = createSampleReport(found.id, found.repositoryUrl, found.commitSha || 'latest');
-      ProjectStore.persist();
     }
     return { ...found };
   }
 
-  public static create(data: { name: string; repositoryUrl: string; branch?: string; description?: string; ownerId?: string }): StoredProject {
+  public static create(data: { id?: string; name: string; repositoryUrl: string; branch?: string; description?: string; ownerId?: string }): StoredProject {
     const list = ProjectStore.ensureLoaded();
     const hash = crypto.createHash('sha256').update(data.repositoryUrl + Date.now()).digest('hex').substring(0, 8);
     const now = new Date().toISOString();
 
     const newProject: StoredProject = {
-      id: `proj-${hash}`,
+      id: data.id || `proj-${hash}`,
       name: data.name.trim(),
       description: data.description?.trim() || '',
       repositoryUrl: data.repositoryUrl.trim(),
@@ -465,8 +424,8 @@ export class ProjectStore {
     if (idx === -1) return false;
 
     if (ownerId && ownerId !== 'all') {
-      const projOwner = list[idx].ownerId || 'default';
-      if (projOwner !== ownerId && projOwner !== 'default') {
+      const projOwner = list[idx].ownerId;
+      if (projOwner && projOwner !== ownerId) {
         return false;
       }
     }
