@@ -1,8 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, GitBranch, GitCommit, PanelLeft } from 'lucide-react';
+import { ChevronRight, GitBranch, RefreshCw, GitCommit, Menu } from 'lucide-react';
 import { Project } from '../../types/project';
-import { HeaderActionDock } from './HeaderActionDock';
+import { ThemeToggle } from '../theme/ThemeToggle';
+import { useAuth } from '../../context/AuthContext';
 
 interface WorkspaceHeaderProps {
   project: Project;
@@ -17,6 +18,8 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
   isRechecking = false,
   onMenuToggle,
 }) => {
+  const { user } = useAuth();
+
   return (
     <header className="w-full px-6 sm:px-8 lg:px-10 h-16 border-b border-[var(--border-soft)] bg-[var(--surface-card)] flex items-center justify-between z-10">
       {/* Left: Mobile Menu Trigger & Breadcrumbs */}
@@ -24,11 +27,10 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
         {onMenuToggle && (
           <button
             onClick={onMenuToggle}
-            className="p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex-shrink-0"
-            title="Toggle sidebar"
-            aria-label="Toggle navigation sidebar"
+            className="lg:hidden p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex-shrink-0"
+            aria-label="Open navigation sidebar"
           >
-            <PanelLeft className="w-5 h-5 text-[var(--color-mauve)]" />
+            <Menu className="w-5 h-5" />
           </button>
         )}
 
@@ -58,13 +60,38 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
         </div>
       </div>
 
-      {/* Right: Actions via Animated Morphing Dock */}
+      {/* Right: Actions, Theme Toggle, Profile */}
       <div className="flex items-center gap-2.5 flex-shrink-0">
-        <HeaderActionDock
-          showRecheck={Boolean(onRecheck)}
-          onRecheck={onRecheck}
-          isRechecking={isRechecking}
-        />
+        {onRecheck && (
+          <button
+            onClick={onRecheck}
+            disabled={isRechecking}
+            className="btn-secondary text-xs sm:text-sm px-3 py-1.5"
+            title="Recheck against repository head"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRechecking ? 'animate-spin text-[var(--color-mauve)]' : ''}`} />
+            <span className="hidden sm:inline">{isRechecking ? 'Rechecking...' : 'Recheck'}</span>
+          </button>
+        )}
+
+        <ThemeToggle showLabel={false} />
+
+        {user && (
+          <div
+            className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-tr from-[var(--color-merlot)] to-[var(--color-mauve)] text-[var(--color-pale-blush)] flex items-center justify-center font-bold text-xs uppercase shadow-sm flex-shrink-0 border border-[var(--border-soft)]"
+            title={user.fullName || user.email}
+          >
+            {user.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt={user.fullName || 'User'}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span>{user.fullName ? user.fullName[0] : 'U'}</span>
+            )}
+          </div>
+        )}
       </div>
     </header>
   );

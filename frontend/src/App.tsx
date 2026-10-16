@@ -7,7 +7,6 @@ import { LoginPage } from './pages/LoginPage';
 import { SignUpPage } from './pages/SignUpPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { WorkspacePage } from './pages/WorkspacePage';
-import { ProfilePage } from './pages/ProfilePage';
 
 // Protected route guard
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -43,14 +42,6 @@ export function App() {
             <Route path="/signup" element={<SignUpPage />} />
 
             {/* Authenticated routes */}
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute>
-                  <ProfilePage />
-                </ProtectedRoute>
-              }
-            />
             <Route
               path="/projects"
               element={

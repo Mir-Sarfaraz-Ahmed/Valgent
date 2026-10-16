@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { AppSidebar } from '../components/navigation/AppSidebar';
-import { HeaderActionDock } from '../components/navigation/HeaderActionDock';
 import { ProjectService } from '../lib/api-client';
 import { Project } from '../types/project';
 import {
@@ -17,9 +16,7 @@ import {
   Trash2,
   RefreshCw,
   Server,
-  WifiOff,
-  Home,
-  PanelLeft
+  WifiOff
 } from 'lucide-react';
 import { ThemeToggle } from '../components/theme/ThemeToggle';
 import { useAuth } from '../context/AuthContext';
@@ -180,12 +177,11 @@ export const ProjectsPage: React.FC = () => {
         <header className="w-full px-6 sm:px-8 lg:px-10 h-16 border-b border-[var(--border-soft)] bg-[var(--surface-card)] flex items-center justify-between z-10">
           <div className="flex items-center gap-3.5">
             <button
-              onClick={() => setIsMobileMenuOpen((prev) => !prev)}
-              className="p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-              title="Toggle navigation sidebar"
-              aria-label="Toggle navigation sidebar"
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="lg:hidden p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/10"
+              aria-label="Open sidebar"
             >
-              <PanelLeft className="w-5 h-5 text-[var(--color-mauve)]" />
+              <Menu className="w-5 h-5" />
             </button>
             <div>
               <h1 className="text-lg sm:text-xl font-bold font-heading text-[var(--text-primary)] leading-tight">
@@ -198,7 +194,50 @@ export const ProjectsPage: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <HeaderActionDock isOfflineMode={isOfflineMode} />
+            {/* Backend Server Connectivity Status Indicator */}
+            <div
+              className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
+                isOfflineMode
+                  ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                  : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+              }`}
+              title={
+                isOfflineMode
+                  ? 'Server offline or unreachable. Displaying cached reference projects.'
+                  : 'Connected to live Valgent AST verification backend.'
+              }
+            >
+              {isOfflineMode ? (
+                <>
+                  <WifiOff className="w-3 h-3 text-amber-400" />
+                  <span>Offline / Demo Fixtures</span>
+                </>
+              ) : (
+                <>
+                  <Server className="w-3 h-3 text-emerald-400" />
+                  <span>Live Server Connected</span>
+                </>
+              )}
+            </div>
+
+            <ThemeToggle showLabel={false} />
+
+            {user && (
+              <div
+                className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-tr from-[var(--color-merlot)] to-[var(--color-mauve)] text-[var(--color-pale-blush)] flex items-center justify-center font-bold text-xs uppercase shadow-sm border border-[var(--border-soft)]"
+                title={user.fullName || user.email}
+              >
+                {user.avatarUrl ? (
+                  <img
+                    src={user.avatarUrl}
+                    alt={user.fullName || 'User'}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span>{user.fullName ? user.fullName[0] : 'U'}</span>
+                )}
+              </div>
+            )}
           </div>
         </header>
 

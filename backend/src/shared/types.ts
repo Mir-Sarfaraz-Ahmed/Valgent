@@ -61,7 +61,11 @@ export type EvidenceType =
   | 'AST_CALL'
   | 'DATABASE_OPERATION'
   | 'REACT_COMPONENT'
-  | 'SEMANTIC_RELATIONSHIP';
+  | 'SEMANTIC_RELATIONSHIP'
+  // ─── New (Sprint 1-5) ───────────────────────────────
+  | 'GITINGEST_DIGEST'   // full LLM-optimised repo text from gitingest
+  | 'DIAGRAM'            // Mermaid architecture diagram
+  | 'DOC_CLAIM';         // uploaded documentation claim
 
 export type SandboxOperation = 'INSTALL_DEPENDENCIES' | 'BUILD' | 'TEST' | 'CUSTOM_VALIDATION';
 
@@ -164,7 +168,12 @@ export type AnalysisStage =
   | 'REPORT_GENERATED'
   | 'CLEANUP'
   | 'COMPLETED'
-  | 'ANALYSIS_FAILED';
+  | 'ANALYSIS_FAILED'
+  // ─── New pipeline stages (Sprint 1-5) ───────────────
+  | 'GITINGEST_EXTRACTION'
+  | 'DIAGRAM_GENERATED'
+  | 'DOC_COMPARISON'
+  | 'TYPESAFE_COMPARISON';
 
 export type ValidationStatus = 'VERIFIED' | 'PARTIALLY_VERIFIED' | 'NOT_VERIFIED' | 'INSUFFICIENT_EVIDENCE';
 
@@ -184,6 +193,16 @@ export interface ValidationResult {
   checks: string[];
   limitations: string[];
   missing_evidence: string[];
+
+  /** Optional TypeSafe Jev comparison data (Sprint 2) */
+  typesafe?: {
+    verdict: string;
+    implementation_confidence: number;
+    evidence_sufficiency: string;
+    is_verifiable: number;
+    structural_match: number;
+    method: 'typesafe_high_confidence' | 'typesafe_medium_confidence' | 'typesafe_escalate_llm' | 'llm_only';
+  };
 }
 
 export interface RemediationTask {

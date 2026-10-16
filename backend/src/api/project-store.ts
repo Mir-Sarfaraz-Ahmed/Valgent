@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import * as os from 'os';
 
 export interface StoredProject {
   id: string;
@@ -303,7 +304,7 @@ export function createSampleReport(projectId: string, repoUrl: string, commitSha
 }
 
 export class ProjectStore {
-  private static DATA_DIR = path.resolve(process.cwd(), '.valgent-data');
+  private static DATA_DIR = path.resolve(process.env.VERCEL ? os.tmpdir() : process.cwd(), '.valgent-data');
   private static DATA_FILE = path.join(ProjectStore.DATA_DIR, 'projects.json');
   private static memoryCache: StoredProject[] | null = null;
 
