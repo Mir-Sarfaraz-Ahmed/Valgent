@@ -33,6 +33,8 @@ export const LoginPage: React.FC = () => {
     setSubmitting(false);
 
     if (result.success) {
+      setEmail('');
+      setPassword('');
       navigate('/projects');
     } else if (result.error) {
       setLocalError(result.error);

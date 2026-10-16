@@ -42,6 +42,9 @@ export const SignUpPage: React.FC = () => {
     if (result.success) {
       if (result.needsConfirmation) {
         setSuccessNotice('Account created successfully! Please check your email inbox to verify your account, then sign in.');
+        setFullName('');
+        setEmail('');
+        setPassword('');
       } else {
         navigate('/projects');
       }
