@@ -128,9 +128,9 @@ Installed to system configuration (`C:\Users\shada\.gemini\config\skills/`):
 For deploying the backend to Render:
 
 1. **Dashboard Setup**:
-   - Create new **Web Service** $\rightarrow$ Connect `sh4dabexe/AGHV`.
+   - Create new **Web Service** $\rightarrow$ Connect your repository.
 2. **Settings**:
-   - **Root Directory**: `Backend`
+   - **Root Directory**: *(Leave blank / empty)* (The backend `package.json` and `src/` are located in the repository root directory).
    - **Environment**: `Node`
    - **Branch**: `main`
    - **Build Command**: `npm install && npm run build`
