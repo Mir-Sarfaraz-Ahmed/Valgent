@@ -47,10 +47,11 @@ export const ProjectsPage: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   const loadProjects = useCallback(async () => {
+    if (authLoading) return;
     setIsLoading(true);
     try {
       const res = await ProjectService.getProjects(user?.id);
@@ -61,10 +62,12 @@ export const ProjectsPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, authLoading]);
 
   useEffect(() => {
-    loadProjects();
+    if (!authLoading) {
+      loadProjects();
+    }
 
     if (!user?.id) return;
 
