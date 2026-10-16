@@ -31,9 +31,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check existing Supabase session
+    // Check existing Supabase session or exchange OAuth code
     const initAuth = async () => {
       try {
+        // Handle incoming OAuth callback with PKCE code
+        const searchParams = new URLSearchParams(window.location.search);
+        const code = searchParams.get('code');
+        if (code) {
+          const { data: exchangeData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeError) {
+            console.warn('OAuth code exchange notice:', exchangeError.message);
+          } else if (exchangeData?.session?.user) {
+            const profile: UserProfile = {
+              id: exchangeData.session.user.id,
+              email: exchangeData.session.user.email || '',
+              fullName: exchangeData.session.user.user_metadata?.full_name || exchangeData.session.user.email?.split('@')[0] || 'Authenticated User',
+              avatarUrl: exchangeData.session.user.user_metadata?.avatar_url,
+              provider: (exchangeData.session.user.app_metadata?.provider as any) || 'google',
+              createdAt: exchangeData.session.user.created_at || new Date().toISOString(),
+            };
+            setUser(profile);
+            localStorage.setItem('valgent-auth-user', JSON.stringify(profile));
+            // Clean up the URL search params so the code isn't re-used
+            window.history.replaceState({}, document.title, window.location.pathname);
+            setLoading(false);
+            return;
+          }
+        }
+
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
 
@@ -99,6 +124,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           redirectTo: `${window.location.origin}/projects`,
         },
       });
+
       if (authError) {
         if (
           authError.message?.toLowerCase().includes('not enabled') ||
@@ -108,6 +134,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           throw new Error('Google sign-in is not enabled in your Supabase project dashboard. Please enable Google under Authentication → Providers in Supabase, or sign in using your email and password.');
         }
         throw authError;
+      }
+
+      if (data?.url) {
+        window.location.assign(data.url);
       }
     } catch (err: any) {
       console.error('Google sign-in error:', err);
