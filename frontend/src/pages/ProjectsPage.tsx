@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AppSidebar } from '../components/navigation/AppSidebar';
-import { HeaderActionDock } from '../components/navigation/HeaderActionDock';
 import { ProjectService } from '../lib/api-client';
 import { Project } from '../types/project';
 import {
@@ -172,6 +171,7 @@ export const ProjectsPage: React.FC = () => {
       <AppSidebar
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
+        onToggleOpen={() => setIsMobileMenuOpen((prev) => !prev)}
       />
 
       {/* Main Content Area */}
@@ -198,7 +198,13 @@ export const ProjectsPage: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <HeaderActionDock isOfflineMode={isOfflineMode} />
+            {isOfflineMode && (
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                <WifiOff className="w-3.5 h-3.5" />
+                <span>Offline</span>
+              </span>
+            )}
+            <ThemeToggle showLabel={false} />
           </div>
         </header>
 

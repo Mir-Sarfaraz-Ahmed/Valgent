@@ -32,6 +32,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   currentProjectId,
   isOpen = false,
   onClose,
+  onToggleOpen,
 }) => {
   const params = useParams<{ projectId?: string }>();
   const savedActiveId =
@@ -58,31 +59,13 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   const [isUploadingAvatar, setIsUploadingAvatar] = React.useState(false);
   const navigate = useNavigate();
 
-  // Desktop collapse & hover state
-  // Defaults to false so it is hidden until hovered or clicked
+  // Desktop pin state
   const [isPinned, setIsPinned] = React.useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('valgent-sidebar-pinned') === 'true';
     }
     return false;
   });
-
-  const [isHovered, setIsHovered] = React.useState(false);
-  const hoverTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
-
-  const handleMouseEnter = () => {
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-      hoverTimeoutRef.current = null;
-    }
-    setIsHovered(true);
-  };
-
-  const handleMouseLeave = () => {
-    hoverTimeoutRef.current = setTimeout(() => {
-      setIsHovered(false);
-    }, 220); // 220ms grace period to prevent jitter
-  };
 
   const togglePin = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -95,7 +78,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
     });
   };
 
-  const isDesktopOpen = isPinned || isHovered || isOpen;
+  // Open strictly via button click or pin; NO hover opening/closing
+  const isDesktopOpen = isPinned || isOpen;
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0] && user) {
@@ -181,7 +165,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
               className="hidden lg:flex p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
               title={
                 isPinned
-                  ? 'Unpin sidebar (auto-hide when mouse leaves)'
+                  ? 'Unpin sidebar (collapse to button)'
                   : 'Pin sidebar open'
               }
               aria-label={isPinned ? 'Unpin sidebar' : 'Pin sidebar'}
@@ -193,11 +177,12 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
               )}
             </button>
 
-            {onClose && (
+            {onClose && !isPinned && (
               <button
                 onClick={onClose}
-                className="lg:hidden p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-                aria-label="Close menu"
+                className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                title="Close sidebar"
+                aria-label="Close sidebar"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -306,45 +291,26 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 
   return (
     <>
-      {/* 1. Desktop Left-Edge Invisible Hotzone (Hovering left edge slides panel out) */}
-      {!isPinned && (
-        <div
-          className="hidden lg:block fixed inset-y-0 left-0 w-3.5 z-40 cursor-pointer"
-          onMouseEnter={handleMouseEnter}
-          onClick={handleMouseEnter}
-          title="Hover to open sidebar"
-          aria-hidden="true"
-        />
-      )}
-
-      {/* 2. Desktop Floating Sleek Handle / Tab on left edge (Affordance to hover or click) */}
-      {!isPinned && (
+      {/* 1. Desktop Button on left edge to open side nav panel */}
+      {!isPinned && !isDesktopOpen && (
         <button
+          type="button"
           onClick={() => {
-            if (isDesktopOpen) {
-              setIsHovered(false);
-              onClose?.();
-            } else {
-              setIsHovered(true);
+            if (onToggleOpen) {
+              onToggleOpen();
+            } else if (onClose) {
+              onClose();
             }
           }}
-          onMouseEnter={handleMouseEnter}
-          className={`hidden lg:flex fixed top-24 left-0 z-40 items-center justify-center py-2.5 px-1.5 rounded-r-xl bg-white dark:bg-[var(--surface-card)]/90 hover:bg-slate-50 dark:hover:bg-[var(--surface-card-elevated)] backdrop-blur-md border border-l-0 border-slate-300/90 dark:border-[var(--border-soft)] hover:border-slate-400 dark:hover:border-[var(--color-mauve)] text-slate-800 dark:text-[var(--text-secondary)] hover:text-black dark:hover:text-[var(--text-primary)] shadow-xl transition-all duration-300 group ${
-            isDesktopOpen
-              ? 'opacity-0 pointer-events-none -translate-x-full'
-              : 'opacity-100 translate-x-0'
-          }`}
-          title="Hover or click to expand side panel"
-          aria-label="Expand side panel"
+          className="hidden lg:flex fixed top-20 left-0 z-40 items-center justify-center p-2.5 rounded-r-xl bg-white dark:bg-[var(--surface-card)] hover:bg-slate-100 dark:hover:bg-[var(--surface-card-elevated)] border border-l-0 border-slate-300 dark:border-[var(--border-soft)] hover:border-[var(--color-mauve)] text-slate-700 dark:text-[var(--text-secondary)] hover:text-black dark:hover:text-[var(--text-primary)] shadow-lg transition-all"
+          title="Open navigation sidebar"
+          aria-label="Open navigation sidebar"
         >
-          <div className="flex flex-col items-center gap-1.5">
-            <PanelLeft className="w-4 h-4 text-slate-700 dark:text-[var(--color-mauve)] group-hover:text-black dark:group-hover:text-[var(--color-pale-blush)] transition-colors" />
-            <ChevronRight className="w-3 h-3 text-slate-500 dark:text-[var(--text-muted)] group-hover:translate-x-0.5 transition-transform" />
-          </div>
+          <PanelLeft className="w-4 h-4 text-[var(--color-mauve)]" />
         </button>
       )}
 
-      {/* 3. Desktop Dock Spacer when pinned (So page layout smoothly accommodates pinned sidebar) */}
+      {/* 2. Desktop Dock Spacer when pinned (So page layout smoothly docks pinned sidebar) */}
       <div
         className={`hidden lg:block flex-shrink-0 transition-all duration-300 ease-in-out ${
           isPinned ? 'w-64' : 'w-0'
@@ -352,11 +318,18 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         aria-hidden="true"
       />
 
+      {/* 3. Desktop Backdrop when open and unpinned (Click outside closes it) */}
+      {isDesktopOpen && !isPinned && (
+        <div
+          className="hidden lg:block fixed inset-0 bg-black/40 backdrop-blur-xs z-40 transition-opacity"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+
       {/* 4. Desktop Sidebar Panel (Floating if unpinned, docked if pinned) */}
       <aside
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        className={`hidden lg:flex fixed inset-y-0 left-0 w-64 h-screen flex-col border-r border-[var(--border-soft)] bg-[var(--surface-sidebar)] z-50 transform transition-all duration-300 ease-out ${
+        className={`hidden lg:flex fixed inset-y-0 left-0 w-64 h-screen flex-col border-r border-[var(--border-soft)] bg-[var(--surface-sidebar)] z-50 transform transition-transform duration-300 ease-out ${
           isDesktopOpen
             ? 'translate-x-0 shadow-2xl shadow-black/60'
             : '-translate-x-full shadow-none pointer-events-none'

@@ -22,7 +22,6 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { AppSidebar } from '../components/navigation/AppSidebar';
-import { HeaderActionDock } from '../components/navigation/HeaderActionDock';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { uploadUserAvatar } from '../lib/storage';
@@ -242,10 +241,11 @@ export const ProfilePage: React.FC = () => {
 
   return (
     <div className="min-h-screen flex bg-[var(--surface-page)] text-[var(--text-primary)]">
-      {/* Collapsible / Hoverable Navigation Sidebar */}
+      {/* Collapsible Navigation Sidebar */}
       <AppSidebar
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
+        onToggleOpen={() => setIsMobileMenuOpen((prev) => !prev)}
       />
 
       {/* Main Content Area */}
@@ -311,9 +311,7 @@ export const ProfilePage: React.FC = () => {
               )}
             </Button>
 
-            <div className="hidden sm:block h-5 w-[1px] bg-[var(--border-soft)] flex-shrink-0" />
-
-            <HeaderActionDock />
+            <ThemeToggle showLabel={false} />
           </div>
         </header>
 

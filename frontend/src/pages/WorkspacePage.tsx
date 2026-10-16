@@ -451,6 +451,7 @@ export const WorkspacePage: React.FC = () => {
         <AppSidebar
           isOpen={isMobileMenuOpen}
           onClose={() => setIsMobileMenuOpen(false)}
+          onToggleOpen={() => setIsMobileMenuOpen((prev) => !prev)}
         />
         <div className="flex-1 flex flex-col min-w-0">
           <main className="w-full max-w-4xl mx-auto px-6 py-20 flex flex-col items-center justify-center text-center">
@@ -479,6 +480,7 @@ export const WorkspacePage: React.FC = () => {
         currentProjectId={project.id}
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
+        onToggleOpen={() => setIsMobileMenuOpen((prev) => !prev)}
       />
 
       {/* 2. Main Workspace Body */}
