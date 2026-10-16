@@ -23,6 +23,7 @@ import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { EmptyState } from '../components/ui/EmptyState';
+import { supabase } from '../lib/supabase';
 
 export const ProjectsPage: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -64,7 +65,30 @@ export const ProjectsPage: React.FC = () => {
 
   useEffect(() => {
     loadProjects();
-  }, [loadProjects]);
+
+    if (!user?.id) return;
+
+    // Real-time Supabase postgres change listener
+    const channel = supabase
+      .channel(`projects-realtime-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'projects',
+          filter: `owner_id=eq.${user.id}`,
+        },
+        () => {
+          loadProjects();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [loadProjects, user?.id]);
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
