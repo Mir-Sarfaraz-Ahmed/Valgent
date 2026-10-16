@@ -305,112 +305,113 @@ export function createSampleReport(projectId: string, repoUrl: string, commitSha
 export class ProjectStore {
   private static DATA_DIR = path.resolve(process.cwd(), '.valgent-data');
   private static DATA_FILE = path.join(ProjectStore.DATA_DIR, 'projects.json');
+  private static memoryCache: StoredProject[] | null = null;
 
-  private static ensureDataDir(): void {
-    if (!fs.existsSync(ProjectStore.DATA_DIR)) {
-      fs.mkdirSync(ProjectStore.DATA_DIR, { recursive: true });
+  private static ensureLoaded(): StoredProject[] {
+    if (ProjectStore.memoryCache !== null) {
+      return ProjectStore.memoryCache;
     }
 
-    const demoReport1 = createSampleReport('proj-valgent-demo', 'https://github.com/valgent/demo', '9f2a1c7');
-    const demoReport2 = createSampleReport('proj-civicpulse-ai', 'https://github.com/Mir-Sarfaraz-Ahmed/civicpulse-ai.git', 'a3c7e9d');
-    const demoReport3 = createSampleReport('proj-campusconnect', 'https://github.com/campus/connect', '5b8d2f1');
+    try {
+      if (!fs.existsSync(ProjectStore.DATA_DIR)) {
+        fs.mkdirSync(ProjectStore.DATA_DIR, { recursive: true });
+      }
 
-    if (!fs.existsSync(ProjectStore.DATA_FILE)) {
-      const initialSeed: StoredProject[] = [
-        {
-          id: 'proj-valgent-demo',
-          name: 'Valgent Demo',
-          description: 'AI-powered project validation platform with AST semantic analysis',
-          repositoryUrl: 'https://github.com/valgent/demo',
-          branch: 'main',
-          commitSha: '9f2a1c7',
-          status: 'in_progress',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          lastAnalyzedAt: new Date().toISOString(),
-          ownerId: 'default',
-          latestReport: demoReport1,
-          reports: [demoReport1]
-        },
-        {
-          id: 'proj-civicpulse-ai',
-          name: 'CivicPulse AI',
-          description: 'Civic engagement and feedback platform for municipal transparency',
-          repositoryUrl: 'https://github.com/Mir-Sarfaraz-Ahmed/civicpulse-ai.git',
-          branch: 'main',
-          commitSha: 'a3c7e9d',
-          status: 'needs_review',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          lastAnalyzedAt: new Date().toISOString(),
-          ownerId: 'default',
-          latestReport: demoReport2,
-          reports: [demoReport2]
-        },
-        {
-          id: 'proj-campusconnect',
-          name: 'CampusConnect',
-          description: 'Student community and event platform with peer tutoring',
-          repositoryUrl: 'https://github.com/campus/connect',
-          branch: 'dev',
-          commitSha: '5b8d2f1',
-          status: 'completed',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          lastAnalyzedAt: new Date().toISOString(),
-          ownerId: 'default',
-          latestReport: demoReport3,
-          reports: [demoReport3]
-        }
-      ];
-      fs.writeFileSync(ProjectStore.DATA_FILE, JSON.stringify(initialSeed, null, 2), 'utf-8');
+      const demoReport1 = createSampleReport('proj-valgent-demo', 'https://github.com/valgent/demo', '9f2a1c7');
+      const demoReport2 = createSampleReport('proj-civicpulse-ai', 'https://github.com/Mir-Sarfaraz-Ahmed/civicpulse-ai.git', 'a3c7e9d');
+      const demoReport3 = createSampleReport('proj-campusconnect', 'https://github.com/campus/connect', '5b8d2f1');
+
+      if (!fs.existsSync(ProjectStore.DATA_FILE)) {
+        const initialSeed: StoredProject[] = [
+          {
+            id: 'proj-valgent-demo',
+            name: 'Valgent Demo',
+            description: 'AI-powered project validation platform with AST semantic analysis',
+            repositoryUrl: 'https://github.com/valgent/demo',
+            branch: 'main',
+            commitSha: '9f2a1c7',
+            status: 'in_progress',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            lastAnalyzedAt: new Date().toISOString(),
+            ownerId: 'default',
+            latestReport: demoReport1,
+            reports: [demoReport1]
+          },
+          {
+            id: 'proj-civicpulse-ai',
+            name: 'CivicPulse AI',
+            description: 'Civic engagement and feedback platform for municipal transparency',
+            repositoryUrl: 'https://github.com/Mir-Sarfaraz-Ahmed/civicpulse-ai.git',
+            branch: 'main',
+            commitSha: 'a3c7e9d',
+            status: 'needs_review',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            lastAnalyzedAt: new Date().toISOString(),
+            ownerId: 'default',
+            latestReport: demoReport2,
+            reports: [demoReport2]
+          },
+          {
+            id: 'proj-campusconnect',
+            name: 'CampusConnect',
+            description: 'Student community and event platform with peer tutoring',
+            repositoryUrl: 'https://github.com/campus/connect',
+            branch: 'dev',
+            commitSha: '5b8d2f1',
+            status: 'completed',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            lastAnalyzedAt: new Date().toISOString(),
+            ownerId: 'default',
+            latestReport: demoReport3,
+            reports: [demoReport3]
+          }
+        ];
+        fs.writeFileSync(ProjectStore.DATA_FILE, JSON.stringify(initialSeed, null, 2), 'utf-8');
+        ProjectStore.memoryCache = initialSeed;
+        return ProjectStore.memoryCache;
+      }
+
+      const raw = fs.readFileSync(ProjectStore.DATA_FILE, 'utf-8');
+      ProjectStore.memoryCache = JSON.parse(raw);
+      return ProjectStore.memoryCache || [];
+    } catch (err) {
+      console.error('[ProjectStore] Failed to load projects:', err);
+      ProjectStore.memoryCache = [];
+      return ProjectStore.memoryCache;
+    }
+  }
+
+  private static persist(): void {
+    if (!ProjectStore.memoryCache) return;
+    try {
+      if (!fs.existsSync(ProjectStore.DATA_DIR)) {
+        fs.mkdirSync(ProjectStore.DATA_DIR, { recursive: true });
+      }
+      fs.writeFileSync(ProjectStore.DATA_FILE, JSON.stringify(ProjectStore.memoryCache, null, 2), 'utf-8');
+    } catch (err) {
+      console.warn('[ProjectStore] Failed to persist projects to disk:', err);
     }
   }
 
   public static getAll(): StoredProject[] {
-    try {
-      ProjectStore.ensureDataDir();
-      const raw = fs.readFileSync(ProjectStore.DATA_FILE, 'utf-8');
-      const list: StoredProject[] = JSON.parse(raw);
-
-      // Ensure default showcase projects exist and have latestReport populated
-      let changed = false;
-      const demoProjects = ['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'];
-      for (const p of list) {
-        if (demoProjects.includes(p.id) && !p.latestReport) {
-          p.latestReport = createSampleReport(p.id, p.repositoryUrl, p.commitSha || 'latest');
-          changed = true;
-        }
-      }
-
-      if (changed) {
-        ProjectStore.saveAll(list);
-      }
-
-      return list;
-    } catch (err) {
-      console.error('[ProjectStore] Failed to read projects:', err);
-      return [];
-    }
-  }
-
-  private static saveAll(projects: StoredProject[]): void {
-    ProjectStore.ensureDataDir();
-    fs.writeFileSync(ProjectStore.DATA_FILE, JSON.stringify(projects, null, 2), 'utf-8');
+    return [...ProjectStore.ensureLoaded()];
   }
 
   public static getById(id: string): StoredProject | null {
-    const list = ProjectStore.getAll();
+    const list = ProjectStore.ensureLoaded();
     const found = list.find(p => p.id === id);
     if (found && !found.latestReport && ['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(id)) {
       found.latestReport = createSampleReport(found.id, found.repositoryUrl, found.commitSha || 'latest');
-      ProjectStore.saveAll(list);
+      ProjectStore.persist();
     }
-    return found || null;
+    return found ? { ...found } : null;
   }
 
   public static create(data: { name: string; repositoryUrl: string; branch?: string; description?: string }): StoredProject {
-    const list = ProjectStore.getAll();
+    const list = ProjectStore.ensureLoaded();
     const hash = crypto.createHash('sha256').update(data.repositoryUrl + Date.now()).digest('hex').substring(0, 8);
     const now = new Date().toISOString();
 
@@ -430,12 +431,12 @@ export class ProjectStore {
     };
 
     list.unshift(newProject);
-    ProjectStore.saveAll(list);
-    return newProject;
+    ProjectStore.persist();
+    return { ...newProject };
   }
 
   public static update(id: string, patch: Partial<StoredProject>): StoredProject | null {
-    const list = ProjectStore.getAll();
+    const list = ProjectStore.ensureLoaded();
     const idx = list.findIndex(p => p.id === id);
     if (idx === -1) return null;
 
@@ -445,21 +446,22 @@ export class ProjectStore {
       updatedAt: new Date().toISOString()
     };
 
-    ProjectStore.saveAll(list);
-    return list[idx];
+    ProjectStore.persist();
+    return { ...list[idx] };
   }
 
   public static delete(id: string): boolean {
-    const list = ProjectStore.getAll();
-    const filtered = list.filter(p => p.id !== id);
-    if (filtered.length === list.length) return false;
+    const list = ProjectStore.ensureLoaded();
+    const idx = list.findIndex(p => p.id === id);
+    if (idx === -1) return false;
 
-    ProjectStore.saveAll(filtered);
+    list.splice(idx, 1);
+    ProjectStore.persist();
     return true;
   }
 
   public static attachReport(projectId: string, report: any): StoredProject | null {
-    const list = ProjectStore.getAll();
+    const list = ProjectStore.ensureLoaded();
     let project = list.find(p => p.id === projectId);
 
     if (!project) {
@@ -492,7 +494,7 @@ export class ProjectStore {
       project.reports = [report, ...existingReports.filter((r: any) => r.analysis_run_id !== report.analysis_run_id)];
     }
 
-    ProjectStore.saveAll(list);
+    ProjectStore.persist();
     return project;
   }
 
