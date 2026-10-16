@@ -170,7 +170,8 @@ export const WorkspacePage: React.FC = () => {
       setUploadedFiles((prev) => [...prev, tempEntry]);
 
       try {
-        const filePath = `${project.id}/${Date.now()}_${file.name}`;
+        const userFolder = user?.id || 'anon';
+        const filePath = `${userFolder}/${project.id}/${Date.now()}_${file.name}`;
         await supabase.storage.from('valgent').upload(filePath, file);
 
         if (user?.id) {
