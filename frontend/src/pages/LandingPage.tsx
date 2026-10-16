@@ -20,11 +20,11 @@ export const LandingPage: React.FC = () => {
       <PublicHeader />
 
       <main className="flex-1 w-full relative">
-        {/* Ambient Animated Gradient Aura behind Hero */}
-        <div className="absolute inset-x-0 top-0 h-[720px] pointer-events-none z-0 overflow-hidden opacity-30 [mask-image:radial-gradient(ellipse_at_top,black_40%,transparent_75%)]">
+        {/* Ambient Animated Gradient extending across all content sections till before footer */}
+        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden opacity-25 dark:opacity-30 [mask-image:linear-gradient(to_bottom,black_0%,black_92%,transparent_100%)]">
           <AnimatedGradient
-            config={{ preset: "ValgentPlum", speed: 18 }}
-            noise={{ opacity: 0.1 }}
+            config={{ preset: "ValgentPlum", speed: 14 }}
+            noise={{ opacity: 0.08 }}
           />
         </div>
 
@@ -202,7 +202,7 @@ export const LandingPage: React.FC = () => {
         </section>
 
         {/* 2. Visual Narrative Section: The 5-Step Pipeline Explained */}
-        <section id="narrative" className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24 border-t border-[var(--border-soft)]">
+        <section id="narrative" className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24 border-t border-[var(--border-soft)] relative z-10">
           <div className="flex flex-col items-center text-center gap-3.5 max-w-3xl mx-auto mb-14">
             <span className="text-xs font-bold tracking-widest text-[var(--color-dusty-rose)] uppercase">
               The Architecture of Truth
@@ -280,7 +280,7 @@ export const LandingPage: React.FC = () => {
         </section>
 
         {/* 3. Implemented Capabilities vs Honest Roadmap */}
-        <section id="capabilities" className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-20 border-t border-[var(--border-soft)]">
+        <section id="capabilities" className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-20 border-t border-[var(--border-soft)] relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             <div className="lg:col-span-5 flex flex-col gap-4">
               <span className="text-xs font-bold tracking-widest text-[var(--color-dusty-rose)] uppercase">
@@ -356,7 +356,7 @@ export const LandingPage: React.FC = () => {
         </section>
 
         {/* 4. Architecture & Security Section */}
-        <section id="architecture" className="w-full max-w-7xl mx-auto px-4 sm:px-6 pb-16 sm:pb-24 border-t border-[var(--border-soft)] pt-16">
+        <section id="architecture" className="w-full max-w-7xl mx-auto px-4 sm:px-6 pb-16 sm:pb-24 border-t border-[var(--border-soft)] pt-16 relative z-10">
           <div className="ui-card-elevated p-6 sm:p-8 max-w-4xl mx-auto flex flex-col md:flex-row items-center gap-6 sm:gap-8 border border-[var(--border-strong)]">
             <div className="p-4 rounded-2xl bg-[var(--color-merlot)]/25 text-[var(--color-dusty-rose)] flex-shrink-0 border border-[var(--color-mauve)]/30">
               <ShieldCheck className="w-10 h-10 sm:w-12 sm:h-12" />
@@ -381,7 +381,7 @@ export const LandingPage: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="w-full border-t border-[var(--border-soft)] bg-[var(--surface-card)] py-8 px-4 sm:px-6 text-xs text-[var(--text-muted)]">
+      <footer className="w-full border-t border-[var(--border-soft)] bg-[var(--surface-card)] py-8 px-4 sm:px-6 text-xs text-[var(--text-muted)] relative z-10">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
             <span className="font-semibold text-[var(--text-primary)]">Valgent</span>

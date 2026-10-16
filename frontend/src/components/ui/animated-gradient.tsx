@@ -361,7 +361,7 @@ export default function AnimatedGradient({
       if (!container || !canvas || !gl) return;
       const width = container.clientWidth || 300;
       const height = container.clientHeight || 200;
-      const pixelRatio = window.devicePixelRatio || 1;
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
       canvas.width = width * pixelRatio;
       canvas.height = height * pixelRatio;
       canvas.style.width = `${width}px`;
@@ -379,10 +379,11 @@ export default function AnimatedGradient({
       if (!gl || !canvas) return;
       const elapsed = (time - startTimeRef.current) / 1000;
       const speed = (params.speed / 100) * 5;
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
 
       gl.uniform1f(uniforms.u_time, elapsed * speed + params.offset * 0.01);
       gl.uniform2f(uniforms.u_resolution, canvas.width, canvas.height);
-      gl.uniform1f(uniforms.u_pixelRatio, window.devicePixelRatio || 1);
+      gl.uniform1f(uniforms.u_pixelRatio, pixelRatio);
       gl.uniform1f(uniforms.u_scale, params.scale);
       gl.uniform1f(uniforms.u_rotation, (params.rotation * Math.PI) / 180);
 
