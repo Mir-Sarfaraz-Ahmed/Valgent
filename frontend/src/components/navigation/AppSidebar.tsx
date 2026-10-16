@@ -4,6 +4,7 @@ import { LayoutDashboard, Network, FileText, Map, FolderGit2, LogOut, X } from '
 import { ValgentLogo } from '../brand/ValgentLogo';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { useAuth } from '../../context/AuthContext';
+import { uploadUserAvatar } from '../../lib/storage';
 
 interface AppSidebarProps {
   currentProjectId?: string;
@@ -18,8 +19,29 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 }) => {
   const params = useParams<{ projectId?: string }>();
   const activeProjectId = currentProjectId || params.projectId || 'proj-valgent-demo';
-  const { user, signOut } = useAuth();
+  const { user, signOut, updateAvatarUrl } = useAuth();
+  const [isUploadingAvatar, setIsUploadingAvatar] = React.useState(false);
   const navigate = useNavigate();
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0] && user) {
+      const file = e.target.files[0];
+      try {
+        setIsUploadingAvatar(true);
+        const { signedUrl } = await uploadUserAvatar({
+          userId: user.id,
+          file,
+        });
+        if (signedUrl) {
+          updateAvatarUrl(signedUrl);
+        }
+      } catch (err) {
+        console.warn('Failed to upload user avatar:', err);
+      } finally {
+        setIsUploadingAvatar(false);
+      }
+    }
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -113,9 +135,36 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         {user && (
           <div className="flex items-center justify-between p-2 rounded-xl bg-black/5 dark:bg-white/5 border border-[var(--border-soft)]">
             <div className="flex items-center gap-2.5 overflow-hidden">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[var(--color-merlot)] to-[var(--color-mauve)] text-[var(--color-pale-blush)] flex items-center justify-center font-bold text-xs uppercase flex-shrink-0 border border-[var(--border-soft)]">
-                {user.fullName ? user.fullName[0] : 'U'}
-              </div>
+              <label
+                htmlFor="sidebar-avatar-input"
+                className="relative group cursor-pointer flex-shrink-0"
+                title="Click to update avatar image"
+              >
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-tr from-[var(--color-merlot)] to-[var(--color-mauve)] text-[var(--color-pale-blush)] flex items-center justify-center font-bold text-xs uppercase border border-[var(--border-soft)] relative">
+                  {user.avatarUrl ? (
+                    <img
+                      src={user.avatarUrl}
+                      alt={user.fullName || 'User'}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span>{user.fullName ? user.fullName[0] : 'U'}</span>
+                  )}
+                  {isUploadingAvatar && (
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  )}
+                </div>
+                <input
+                  id="sidebar-avatar-input"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarChange}
+                  className="hidden"
+                  disabled={isUploadingAvatar}
+                />
+              </label>
               <div className="flex flex-col overflow-hidden text-left">
                 <span className="text-xs font-semibold text-[var(--text-primary)] truncate">
                   {user.fullName || 'User'}

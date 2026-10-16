@@ -78,10 +78,18 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
 
         {user && (
           <div
-            className="w-8 h-8 rounded-full bg-gradient-to-tr from-[var(--color-merlot)] to-[var(--color-mauve)] text-[var(--color-pale-blush)] flex items-center justify-center font-bold text-xs uppercase shadow-sm flex-shrink-0 border border-[var(--border-soft)]"
+            className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-tr from-[var(--color-merlot)] to-[var(--color-mauve)] text-[var(--color-pale-blush)] flex items-center justify-center font-bold text-xs uppercase shadow-sm flex-shrink-0 border border-[var(--border-soft)]"
             title={user.fullName || user.email}
           >
-            {user.fullName ? user.fullName[0] : 'U'}
+            {user.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt={user.fullName || 'User'}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span>{user.fullName ? user.fullName[0] : 'U'}</span>
+            )}
           </div>
         )}
       </div>

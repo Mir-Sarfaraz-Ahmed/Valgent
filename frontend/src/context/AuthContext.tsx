@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { UserProfile } from '../types/auth';
+import { resolveAvatarDisplayUrl } from '../lib/storage';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -12,6 +13,7 @@ interface AuthContextType {
   signUpWithEmail: (email: string, pass: string, fullName: string) => Promise<{ success: boolean; error?: string; needsConfirmation?: boolean }>;
   signOut: () => Promise<void>;
   clearError: () => void;
+  updateAvatarUrl: (url: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,6 +33,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  const buildUserProfile = async (authUser: any, defaultProvider: string = 'email'): Promise<UserProfile> => {
+    let rawAvatar = authUser.user_metadata?.avatar_url;
+    let fullName =
+      authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'Authenticated User';
+
+    // Check profiles table for user's stored avatar_url
+    try {
+      const { data: profileRow } = await supabase
+        .from('profiles')
+        .select('avatar_url, full_name')
+        .eq('id', authUser.id)
+        .maybeSingle();
+
+      if (profileRow?.avatar_url) {
+        rawAvatar = profileRow.avatar_url;
+      }
+      if (profileRow?.full_name) {
+        fullName = profileRow.full_name;
+      }
+    } catch {
+      // ignore
+    }
+
+    const avatarUrl = await resolveAvatarDisplayUrl(rawAvatar);
+
+    return {
+      id: authUser.id,
+      email: authUser.email || '',
+      fullName,
+      avatarUrl,
+      provider: (authUser.app_metadata?.provider as any) || defaultProvider,
+      createdAt: authUser.created_at || new Date().toISOString(),
+    };
+  };
+
   useEffect(() => {
     // Check existing Supabase session or exchange OAuth code
     const initAuth = async () => {
@@ -43,14 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (exchangeError) {
             console.warn('OAuth code exchange notice:', exchangeError.message);
           } else if (exchangeData?.session?.user) {
-            const profile: UserProfile = {
-              id: exchangeData.session.user.id,
-              email: exchangeData.session.user.email || '',
-              fullName: exchangeData.session.user.user_metadata?.full_name || exchangeData.session.user.email?.split('@')[0] || 'Authenticated User',
-              avatarUrl: exchangeData.session.user.user_metadata?.avatar_url,
-              provider: (exchangeData.session.user.app_metadata?.provider as any) || 'google',
-              createdAt: exchangeData.session.user.created_at || new Date().toISOString(),
-            };
+            const profile = await buildUserProfile(exchangeData.session.user, 'google');
             setUser(profile);
             localStorage.setItem('valgent-auth-user', JSON.stringify(profile));
             // Clean up the URL search params so the code isn't re-used
@@ -64,14 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (sessionError) throw sessionError;
 
         if (session?.user) {
-          const profile: UserProfile = {
-            id: session.user.id,
-            email: session.user.email || '',
-            fullName: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Authenticated User',
-            avatarUrl: session.user.user_metadata?.avatar_url,
-            provider: (session.user.app_metadata?.provider as any) || 'email',
-            createdAt: session.user.created_at || new Date().toISOString(),
-          };
+          const profile = await buildUserProfile(session.user, 'email');
           setUser(profile);
           localStorage.setItem('valgent-auth-user', JSON.stringify(profile));
         } else {
@@ -90,16 +113,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initAuth();
 
     // Listen for auth state changes from Supabase
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        const profile: UserProfile = {
-          id: session.user.id,
-          email: session.user.email || '',
-          fullName: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Authenticated User',
-          avatarUrl: session.user.user_metadata?.avatar_url,
-          provider: (session.user.app_metadata?.provider as any) || 'email',
-          createdAt: session.user.created_at || new Date().toISOString(),
-        };
+        const profile = await buildUserProfile(session.user, 'email');
         setUser(profile);
         localStorage.setItem('valgent-auth-user', JSON.stringify(profile));
       } else {
@@ -294,6 +310,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearError = () => setError(null);
 
+  const updateAvatarUrl = (newAvatarUrl: string) => {
+    setUser((prev) => {
+      if (!prev) return null;
+      const updated = { ...prev, avatarUrl: newAvatarUrl };
+      localStorage.setItem('valgent-auth-user', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -306,6 +331,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signUpWithEmail,
         signOut,
         clearError,
+        updateAvatarUrl,
       }}
     >
       {children}

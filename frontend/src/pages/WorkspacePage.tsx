@@ -5,6 +5,11 @@ import { WorkspaceHeader } from '../components/navigation/WorkspaceHeader';
 import { ProjectService, ApiError } from '../lib/api-client';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import {
+  uploadProjectRequirementFile,
+  deleteProjectRequirementFile,
+  fetchProjectRequirementFilesWithSignedUrls,
+} from '../lib/storage';
 import { Project } from '../types/project';
 import { ClaimTable } from '../components/claims/ClaimTable';
 import { EvidenceGraph } from '../components/evidence/EvidenceGraph';
@@ -43,36 +48,36 @@ export const WorkspacePage: React.FC = () => {
   const [analysisError, setAnalysisError] = useState<ApiError | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
 
-  const [uploadedFiles, setUploadedFiles] = useState<Array<{ id?: string; name: string; size: string; status: 'Ready' | 'Parsing'; path?: string }>>([
-    { name: 'PRD_Specification_v1.0.md', size: '12.4 KB', status: 'Ready' },
-  ]);
+  const [uploadedFiles, setUploadedFiles] = useState<
+    Array<{
+      id?: string;
+      name: string;
+      size: string;
+      status: 'Ready' | 'Parsing';
+      path?: string;
+      signedUrl?: string;
+    }>
+  >([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
-  // Load requirement files for current project from Supabase
+  // Load requirement files for current project from Supabase Storage & DB with signed URLs
   useEffect(() => {
     if (!project?.id) return;
+    let isMounted = true;
     const fetchRequirementFiles = async () => {
       try {
-        const { data, error } = await supabase
-          .from('requirement_files')
-          .select('*')
-          .eq('project_id', project.id);
-        if (!error && data && data.length > 0) {
-          setUploadedFiles(
-            data.map((f: any) => ({
-              id: f.id,
-              name: f.name,
-              size: (Number(f.size_bytes) / 1024).toFixed(1) + ' KB',
-              status: 'Ready',
-              path: f.file_url,
-            }))
-          );
+        const files = await fetchProjectRequirementFilesWithSignedUrls(project.id);
+        if (isMounted) {
+          setUploadedFiles(files);
         }
-      } catch {
-        // keep local state
+      } catch (err) {
+        console.warn('Failed to load project requirement files:', err);
       }
     };
     fetchRequirementFiles();
+    return () => {
+      isMounted = false;
+    };
   }, [project?.id]);
 
   const loadProject = useCallback(async () => {
@@ -170,28 +175,30 @@ export const WorkspacePage: React.FC = () => {
       setUploadedFiles((prev) => [...prev, tempEntry]);
 
       try {
-        const userFolder = user?.id || 'anon';
-        const filePath = `${userFolder}/${project.id}/${Date.now()}_${file.name}`;
-        await supabase.storage.from('valgent').upload(filePath, file);
-
         if (user?.id) {
-          const { data } = await supabase.from('requirement_files').insert([{
-            project_id: project.id,
-            owner_id: user.id,
-            name: file.name,
-            size_bytes: file.size,
-            file_type: file.type || 'text/markdown',
-            file_url: filePath,
-            status: 'parsed',
-          }]).select().single();
+          const uploaded = await uploadProjectRequirementFile({
+            project,
+            user,
+            file,
+          });
 
           setUploadedFiles((prev) =>
-            prev.map((f) => (f.name === file.name ? { ...f, id: data?.id, path: filePath, status: 'Ready' } : f))
+            prev.map((f) =>
+              f.name === file.name
+                ? {
+                    ...f,
+                    id: uploaded.id,
+                    path: uploaded.filePath,
+                    signedUrl: uploaded.signedUrl || undefined,
+                    status: 'Ready',
+                  }
+                : f
+            )
           );
           return;
         }
       } catch (uploadErr) {
-        console.warn('Uploaded to local workspace session:', uploadErr);
+        console.warn('Failed to upload requirement file to storage:', uploadErr);
       }
 
       setUploadedFiles((prev) =>
@@ -204,18 +211,11 @@ export const WorkspacePage: React.FC = () => {
     const target = uploadedFiles[index];
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
 
-    if (target?.path) {
+    if (target?.id || target?.path) {
       try {
-        await supabase.storage.from('valgent').remove([target.path]);
-      } catch {
-        // ignore
-      }
-    }
-    if (target?.id) {
-      try {
-        await supabase.from('requirement_files').delete().eq('id', target.id);
-      } catch {
-        // ignore
+        await deleteProjectRequirementFile(target.id || '', target.path);
+      } catch (err) {
+        console.warn('Failed to remove requirement file:', err);
       }
     }
   };
@@ -531,11 +531,25 @@ export const WorkspacePage: React.FC = () => {
                   <div className="flex flex-wrap items-center gap-3 pt-2">
                     {uploadedFiles.map((file, i) => (
                       <div
-                        key={i}
+                        key={file.id || i}
                         className="inline-flex items-center gap-3 px-4 py-2.5 rounded-xl bg-black/5 dark:bg-white/5 border border-[var(--border-soft)] text-xs sm:text-sm"
                       >
-                        <FileText className="w-4 h-4 text-[var(--color-dusty-rose)]" />
-                        <span className="font-semibold text-[var(--text-primary)]">{file.name}</span>
+                        <FileText className="w-4 h-4 text-[var(--color-dusty-rose)] flex-shrink-0" />
+                        {file.signedUrl ? (
+                          <a
+                            href={file.signedUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            download={file.name}
+                            title="Open or download private document via secure signed URL"
+                            className="font-semibold text-[var(--text-primary)] hover:underline hover:text-[var(--color-mauve)] flex items-center gap-1.5 transition-colors"
+                          >
+                            <span>{file.name}</span>
+                            <ExternalLink className="w-3.5 h-3.5 opacity-60 hover:opacity-100 flex-shrink-0" />
+                          </a>
+                        ) : (
+                          <span className="font-semibold text-[var(--text-primary)]">{file.name}</span>
+                        )}
                         <span className="text-xs text-[var(--text-muted)] font-mono">({file.size})</span>
                         <span className="text-xs font-bold text-[var(--status-verified)] bg-[var(--status-verified-bg)] border border-[var(--status-verified-border)] px-2 py-0.5 rounded-md">
                           {file.status}
