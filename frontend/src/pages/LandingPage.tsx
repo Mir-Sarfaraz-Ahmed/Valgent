@@ -12,15 +12,24 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import AnimatedGradient from '@/components/ui/animated-gradient';
 
 export const LandingPage: React.FC = () => {
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--surface-page)] text-[var(--text-primary)]">
+    <div className="min-h-screen flex flex-col bg-[var(--surface-page)] text-[var(--text-primary)] relative overflow-hidden">
       <PublicHeader />
 
-      <main className="flex-1 w-full">
+      <main className="flex-1 w-full relative">
+        {/* Ambient Animated Gradient Aura behind Hero */}
+        <div className="absolute inset-x-0 top-0 h-[720px] pointer-events-none z-0 overflow-hidden opacity-30 [mask-image:radial-gradient(ellipse_at_top,black_40%,transparent_75%)]">
+          <AnimatedGradient
+            config={{ preset: "ValgentPlum", speed: 18 }}
+            noise={{ opacity: 0.1 }}
+          />
+        </div>
+
         {/* 1. Hero Section */}
-        <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-20 lg:py-24">
+        <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-20 lg:py-24 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
             {/* Left Column: Technical Narrative & Actions */}
             <div className="lg:col-span-7 flex flex-col items-start gap-5 sm:gap-6">
