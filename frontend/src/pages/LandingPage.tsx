@@ -96,17 +96,26 @@ export const LandingPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Right Column: Visual 5-Stage Verification Pipeline */}
-            <div className="lg:col-span-5 relative w-full">
-              <div className="ui-card-elevated p-5 sm:p-7 relative overflow-hidden border border-[var(--border-strong)] bg-[var(--surface-card-elevated)]">
+            {/* Right Column: Visual 5-Stage Verification Pipeline with Frosted Glass Effect */}
+            <div className="lg:col-span-5 relative w-full group">
+              {/* Outer decorative ambient glow behind the glass */}
+              <div className="absolute -inset-1.5 rounded-3xl bg-gradient-to-tr from-[var(--color-merlot)]/50 via-[var(--color-mauve)]/30 to-[var(--color-dusty-rose)]/40 blur-2xl opacity-50 group-hover:opacity-75 transition-opacity pointer-events-none" />
+
+              <div className="relative rounded-2xl p-5 sm:p-7 overflow-hidden border border-white/20 dark:border-white/15 bg-gradient-to-b from-white/[0.08] via-[var(--surface-card-elevated)]/45 to-[var(--surface-card)]/60 backdrop-blur-2xl backdrop-saturate-180 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.6),inset_0_1px_1px_0_rgba(255,255,255,0.25),inset_0_-1px_1px_0_rgba(0,0,0,0.3)] transition-all">
+                {/* Specular light highlight along top rim */}
+                <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/50 to-transparent pointer-events-none" />
+
+                {/* Subtle glass reflection angled sheen */}
+                <div className="absolute -inset-full w-[200%] h-[200%] bg-gradient-to-br from-white/[0.05] via-transparent to-transparent rotate-12 pointer-events-none" />
+
                 {/* Header inside mockup */}
-                <div className="flex items-center justify-between pb-4 border-b border-[var(--border-soft)]">
+                <div className="flex items-center justify-between pb-4 border-b border-white/10 dark:border-white/[0.08] relative z-10">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-[var(--color-merlot)]" />
-                    <div className="w-3 h-3 rounded-full bg-[var(--color-mauve)]" />
-                    <div className="w-3 h-3 rounded-full bg-[var(--color-dusty-rose)]" />
+                    <div className="w-3 h-3 rounded-full bg-[var(--color-merlot)] shadow-inner ring-1 ring-white/10" />
+                    <div className="w-3 h-3 rounded-full bg-[var(--color-mauve)] shadow-inner ring-1 ring-white/10" />
+                    <div className="w-3 h-3 rounded-full bg-[var(--color-dusty-rose)] shadow-inner ring-1 ring-white/10" />
                   </div>
-                  <span className="text-[11px] font-mono text-[var(--color-dusty-rose)]">
+                  <span className="text-[11px] font-mono text-[var(--color-dusty-rose)] tracking-wider">
                     PS-02 Verification Core v1.0
                   </span>
                 </div>
@@ -114,17 +123,17 @@ export const LandingPage: React.FC = () => {
                 {/* 5-Step Narrative Micro-Flow */}
                 <div className="flex flex-col gap-3.5 py-4 relative">
                   {/* Connecting line */}
-                  <div className="absolute left-5 sm:left-6 top-6 bottom-6 w-0.5 bg-gradient-to-b from-[var(--color-merlot)] via-[var(--color-mauve)] to-[var(--color-dusty-rose)] opacity-40" />
+                  <div className="absolute left-5 sm:left-6 top-6 bottom-6 w-0.5 bg-gradient-to-b from-[var(--color-merlot)] via-[var(--color-mauve)] to-[var(--color-dusty-rose)] opacity-50" />
 
                   {/* Stage 1: Repository Ingestion */}
                   <div className="flex items-start gap-3.5 relative z-10">
-                    <div className="w-10 h-10 rounded-xl bg-[var(--surface-card)] border border-[var(--border-strong)] flex items-center justify-center text-[var(--color-dusty-rose)] flex-shrink-0 shadow-sm mt-0.5">
+                    <div className="w-10 h-10 rounded-xl bg-white/5 dark:bg-white/[0.04] backdrop-blur-md border border-white/10 dark:border-white/[0.08] flex items-center justify-center text-[var(--color-dusty-rose)] flex-shrink-0 shadow-sm mt-0.5">
                       <GitBranch className="w-5 h-5" />
                     </div>
                     <div className="flex flex-col min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-[var(--text-primary)]">1. Repository</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--surface-card)] text-[var(--text-muted)] font-mono">git clone</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 dark:bg-white/[0.06] backdrop-blur-xs border border-white/10 dark:border-white/[0.08] text-[var(--text-muted)] font-mono">git clone</span>
                       </div>
                       <span className="text-[11px] text-[var(--text-muted)] leading-tight mt-0.5">
                         Deep tree clone & commit SHA pinning
@@ -134,13 +143,13 @@ export const LandingPage: React.FC = () => {
 
                   {/* Stage 2: Deterministic Static Analysis */}
                   <div className="flex items-start gap-3.5 relative z-10">
-                    <div className="w-10 h-10 rounded-xl bg-[var(--surface-card)] border border-[var(--border-strong)] flex items-center justify-center text-[var(--color-mauve)] flex-shrink-0 shadow-sm mt-0.5">
+                    <div className="w-10 h-10 rounded-xl bg-white/5 dark:bg-white/[0.04] backdrop-blur-md border border-white/10 dark:border-white/[0.08] flex items-center justify-center text-[var(--color-mauve)] flex-shrink-0 shadow-sm mt-0.5">
                       <Code2 className="w-5 h-5" />
                     </div>
                     <div className="flex flex-col min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-[var(--text-primary)]">2. Deterministic AST</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-mono">no hallucinations</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 backdrop-blur-xs border border-emerald-500/30 text-emerald-300 font-mono">no hallucinations</span>
                       </div>
                       <span className="text-[11px] text-[var(--text-muted)] leading-tight mt-0.5">
                         AST symbols, function calls, route declarations & export graph
@@ -150,13 +159,13 @@ export const LandingPage: React.FC = () => {
 
                   {/* Stage 3: Directed Evidence Graph */}
                   <div className="flex items-start gap-3.5 relative z-10">
-                    <div className="w-10 h-10 rounded-xl bg-[var(--surface-card)] border border-[var(--border-strong)] flex items-center justify-center text-[var(--color-dusty-rose)] flex-shrink-0 shadow-sm mt-0.5">
+                    <div className="w-10 h-10 rounded-xl bg-white/5 dark:bg-white/[0.04] backdrop-blur-md border border-white/10 dark:border-white/[0.08] flex items-center justify-center text-[var(--color-dusty-rose)] flex-shrink-0 shadow-sm mt-0.5">
                       <Network className="w-5 h-5" />
                     </div>
                     <div className="flex flex-col min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-[var(--text-primary)]">3. Evidence Graph</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-merlot)]/30 text-[var(--color-pale-blush)] font-mono">directed edges</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-merlot)]/40 backdrop-blur-xs border border-[var(--color-mauve)]/30 text-[var(--color-pale-blush)] font-mono">directed edges</span>
                       </div>
                       <span className="text-[11px] text-[var(--text-muted)] leading-tight mt-0.5">
                         Maps claims to exact file paths, line ranges & Docker test exit codes
@@ -166,13 +175,13 @@ export const LandingPage: React.FC = () => {
 
                   {/* Stage 4: Targeted AI Reasoning */}
                   <div className="flex items-start gap-3.5 relative z-10">
-                    <div className="w-10 h-10 rounded-xl bg-[var(--surface-card)] border border-[var(--border-strong)] flex items-center justify-center text-[var(--color-pale-blush)] flex-shrink-0 shadow-sm mt-0.5">
+                    <div className="w-10 h-10 rounded-xl bg-white/5 dark:bg-white/[0.04] backdrop-blur-md border border-white/10 dark:border-white/[0.08] flex items-center justify-center text-[var(--color-pale-blush)] flex-shrink-0 shadow-sm mt-0.5">
                       <Sparkles className="w-5 h-5 text-[var(--color-dusty-rose)]" />
                     </div>
                     <div className="flex flex-col min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-[var(--text-primary)]">4. Targeted AI</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--surface-card)] text-[var(--color-dusty-rose)] font-mono">grounded prompts</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 dark:bg-white/[0.06] backdrop-blur-xs border border-[var(--color-mauve)]/30 text-[var(--color-dusty-rose)] font-mono">grounded prompts</span>
                       </div>
                       <span className="text-[11px] text-[var(--text-muted)] leading-tight mt-0.5">
                         Evaluates semantic alignment with strict AST citation constraints
@@ -182,13 +191,13 @@ export const LandingPage: React.FC = () => {
 
                   {/* Stage 5: Audited Results & Roadmap */}
                   <div className="flex items-start gap-3.5 relative z-10">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[var(--color-merlot)] to-[var(--color-mauve)] flex items-center justify-center text-[var(--color-pale-blush)] flex-shrink-0 shadow-sm mt-0.5 border border-[var(--color-dusty-rose)]/40">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[var(--color-merlot)] to-[var(--color-mauve)] flex items-center justify-center text-[var(--color-pale-blush)] flex-shrink-0 shadow-md mt-0.5 border border-white/20">
                       <CheckCircle2 className="w-5 h-5" />
                     </div>
                     <div className="flex flex-col min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-[var(--text-primary)]">5. Audited Results</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono">4-status output</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 backdrop-blur-xs border border-emerald-500/30 text-emerald-300 font-mono">4-status output</span>
                       </div>
                       <span className="text-[11px] text-[var(--text-muted)] leading-tight mt-0.5">
                         Actionable gaps become prioritized technical debt tasks
