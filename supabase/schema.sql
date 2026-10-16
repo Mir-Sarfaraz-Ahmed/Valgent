@@ -2,16 +2,13 @@
 -- VALGENT - SUPABASE POSTGRESQL SCHEMA MIGRATION
 -- AI-Powered Deterministic Project Validation Platform
 -- ==============================================================================
--- Run this script in the Supabase SQL Editor:
--- https://supabase.com/dashboard/project/_/sql/new
+-- IMPORTANT:
+-- In Supabase SQL Editor, click "+ New query" or press Ctrl+A and Backspace
+-- to completely clear the editor before pasting this script.
 -- ==============================================================================
 
--- 1. Enable Required Extensions
-create extension if not exists "uuid-ossp";
-create extension if not exists "pgcrypto";
-
 -- ==============================================================================
--- TABLE: profiles
+-- 1. TABLE: profiles
 -- Mirrors auth.users metadata with user profile details
 -- ==============================================================================
 create table if not exists public.profiles (
@@ -26,10 +23,12 @@ create table if not exists public.profiles (
 
 alter table public.profiles enable row level security;
 
+drop policy if exists "Users can view their own profile" on public.profiles;
 create policy "Users can view their own profile"
   on public.profiles for select
   using (auth.uid() = id);
 
+drop policy if exists "Users can update their own profile" on public.profiles;
 create policy "Users can update their own profile"
   on public.profiles for update
   using (auth.uid() = id);
@@ -64,7 +63,7 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 
 -- ==============================================================================
--- TABLE: projects (MAIN TABLE)
+-- 2. TABLE: projects (MAIN TABLE)
 -- Stores registered repositories, validation status, and metadata
 -- ==============================================================================
 create table if not exists public.projects (
@@ -92,32 +91,36 @@ create table if not exists public.projects (
   updated_at timestamptz not null default now()
 );
 
--- Indexes for performance
+-- Performance Indexes
 create index if not exists idx_projects_owner_id on public.projects(owner_id);
 create index if not exists idx_projects_status on public.projects(status);
 create index if not exists idx_projects_created_at on public.projects(created_at desc);
 
--- Row Level Security (RLS) for projects
+-- Row Level Security (RLS)
 alter table public.projects enable row level security;
 
+drop policy if exists "Users can view own projects" on public.projects;
 create policy "Users can view own projects"
   on public.projects for select
   using (auth.uid() = owner_id);
 
+drop policy if exists "Users can insert own projects" on public.projects;
 create policy "Users can insert own projects"
   on public.projects for insert
   with check (auth.uid() = owner_id);
 
+drop policy if exists "Users can update own projects" on public.projects;
 create policy "Users can update own projects"
   on public.projects for update
   using (auth.uid() = owner_id);
 
+drop policy if exists "Users can delete own projects" on public.projects;
 create policy "Users can delete own projects"
   on public.projects for delete
   using (auth.uid() = owner_id);
 
 -- ==============================================================================
--- TABLE: analysis_reports
+-- 3. TABLE: analysis_reports
 -- Historical verification runs and deep AST audit artifacts
 -- ==============================================================================
 create table if not exists public.analysis_reports (
@@ -169,20 +172,23 @@ create index if not exists idx_analysis_reports_created_at on public.analysis_re
 
 alter table public.analysis_reports enable row level security;
 
+drop policy if exists "Users can view own analysis reports" on public.analysis_reports;
 create policy "Users can view own analysis reports"
   on public.analysis_reports for select
   using (auth.uid() = owner_id);
 
+drop policy if exists "Users can insert own analysis reports" on public.analysis_reports;
 create policy "Users can insert own analysis reports"
   on public.analysis_reports for insert
   with check (auth.uid() = owner_id);
 
+drop policy if exists "Users can delete own analysis reports" on public.analysis_reports;
 create policy "Users can delete own analysis reports"
   on public.analysis_reports for delete
   using (auth.uid() = owner_id);
 
 -- ==============================================================================
--- TABLE: claims
+-- 4. TABLE: claims
 -- Granular feature claims verified against AST & dynamic execution
 -- ==============================================================================
 create table if not exists public.claims (
@@ -208,16 +214,18 @@ create index if not exists idx_claims_status on public.claims(status);
 
 alter table public.claims enable row level security;
 
+drop policy if exists "Users can view own claims" on public.claims;
 create policy "Users can view own claims"
   on public.claims for select
   using (auth.uid() = owner_id);
 
+drop policy if exists "Users can insert own claims" on public.claims;
 create policy "Users can insert own claims"
   on public.claims for insert
   with check (auth.uid() = owner_id);
 
 -- ==============================================================================
--- TABLE: evidence_items
+-- 5. TABLE: evidence_items
 -- Concrete code snippets and AST proof linked to claims
 -- ==============================================================================
 create table if not exists public.evidence_items (
@@ -241,16 +249,18 @@ create index if not exists idx_evidence_items_report_id on public.evidence_items
 
 alter table public.evidence_items enable row level security;
 
+drop policy if exists "Users can view own evidence" on public.evidence_items;
 create policy "Users can view own evidence"
   on public.evidence_items for select
   using (auth.uid() = owner_id);
 
+drop policy if exists "Users can insert own evidence" on public.evidence_items;
 create policy "Users can insert own evidence"
   on public.evidence_items for insert
   with check (auth.uid() = owner_id);
 
 -- ==============================================================================
--- TABLE: roadmap_tasks
+-- 6. TABLE: roadmap_tasks
 -- Remediation and implementation action items generated from claims
 -- ==============================================================================
 create table if not exists public.roadmap_tasks (
@@ -278,16 +288,18 @@ create index if not exists idx_roadmap_tasks_status on public.roadmap_tasks(stat
 
 alter table public.roadmap_tasks enable row level security;
 
+drop policy if exists "Users can view own roadmap tasks" on public.roadmap_tasks;
 create policy "Users can view own roadmap tasks"
   on public.roadmap_tasks for select
   using (auth.uid() = owner_id);
 
+drop policy if exists "Users can manage own roadmap tasks" on public.roadmap_tasks;
 create policy "Users can manage own roadmap tasks"
   on public.roadmap_tasks for all
   using (auth.uid() = owner_id);
 
 -- ==============================================================================
--- TABLE: requirement_files
+-- 7. TABLE: requirement_files
 -- Uploaded PRDs, architecture specifications, and markdown documents
 -- ==============================================================================
 create table if not exists public.requirement_files (
@@ -307,16 +319,18 @@ create index if not exists idx_requirement_files_project_id on public.requiremen
 
 alter table public.requirement_files enable row level security;
 
+drop policy if exists "Users can view own requirement files" on public.requirement_files;
 create policy "Users can view own requirement files"
   on public.requirement_files for select
   using (auth.uid() = owner_id);
 
+drop policy if exists "Users can manage own requirement files" on public.requirement_files;
 create policy "Users can manage own requirement files"
   on public.requirement_files for all
   using (auth.uid() = owner_id);
 
 -- ==============================================================================
--- HELPER TRIGGER: Auto-update updated_at timestamp
+-- 8. HELPER TRIGGER: Auto-update updated_at timestamp
 -- ==============================================================================
 create or replace function public.update_updated_at_column()
 returns trigger
@@ -339,9 +353,28 @@ create trigger set_roadmap_tasks_updated_at
   for each row execute procedure public.update_updated_at_column();
 
 -- ==============================================================================
--- REALTIME SUBSCRIPTIONS
--- Enable real-time updates for projects, reports, and roadmap tasks
+-- 9. REALTIME SUBSCRIPTIONS (Safe Idempotent Registration)
 -- ==============================================================================
-alter publication supabase_realtime add table public.projects;
-alter publication supabase_realtime add table public.analysis_reports;
-alter publication supabase_realtime add table public.roadmap_tasks;
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'projects'
+  ) then
+    alter publication supabase_realtime add table public.projects;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'analysis_reports'
+  ) then
+    alter publication supabase_realtime add table public.analysis_reports;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'roadmap_tasks'
+  ) then
+    alter publication supabase_realtime add table public.roadmap_tasks;
+  end if;
+end $$;
