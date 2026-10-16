@@ -41,9 +41,9 @@ export type PresetName =
 
 export const presets: Record<PresetName, PresetParams> = {
   Valgent: {
-    color1: "#150512", // Deep dark-plum canvas
-    color2: "#6B1850", // Signature Merlot
-    color3: "#9B4080", // Vibrant Mauve
+    color1: "#06141B", // Deepest dark slate
+    color2: "#11212D", // Dark navy slate
+    color3: "#253745", // Deep slate steel
     rotation: -35,
     proportion: 48,
     scale: 0.35,
@@ -57,9 +57,9 @@ export const presets: Record<PresetName, PresetParams> = {
     shapeSize: 42,
   },
   ValgentPlum: {
-    color1: "#150512",
-    color2: "#6B1850",
-    color3: "#9B4080",
+    color1: "#06141B",
+    color2: "#253745",
+    color3: "#4A5C6A",
     rotation: -35,
     proportion: 48,
     scale: 0.35,
@@ -73,9 +73,9 @@ export const presets: Record<PresetName, PresetParams> = {
     shapeSize: 42,
   },
   ValgentGlow: {
-    color1: "#3A0828", // Grape skin
-    color2: "#9B4080", // Mauve
-    color3: "#C888A8", // Dusty rose
+    color1: "#11212D",
+    color2: "#4A5C6A",
+    color3: "#9BA8AB",
     rotation: 25,
     proportion: 52,
     scale: 0.45,
@@ -89,9 +89,9 @@ export const presets: Record<PresetName, PresetParams> = {
     shapeSize: 35,
   },
   ValgentLight: {
-    color1: "#FBF6F9", // Soft light canvas
-    color2: "#F0D8E4", // Pale blush
-    color3: "#C888A8", // Dusty rose
+    color1: "#F3F5F5",
+    color2: "#CCD0CF",
+    color3: "#9BA8AB",
     rotation: -20,
     proportion: 38,
     scale: 0.3,

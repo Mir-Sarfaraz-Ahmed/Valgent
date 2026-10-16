@@ -254,11 +254,11 @@ export const EvidenceGraph: React.FC<EvidenceGraphProps> = ({ graph }) => {
                       markerHeight="6"
                       orient="auto-start-reverse"
                     >
-                      <path d="M 0 1 L 9 5 L 0 9 z" fill="#F0D8E4" />
+                      <path d="M 0 1 L 9 5 L 0 9 z" fill="#CCD0CF" />
                     </marker>
                     <linearGradient id="edge-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor="#9B4080" stopOpacity="0.4" />
-                      <stop offset="100%" stopColor="#C888A8" stopOpacity="0.7" />
+                      <stop offset="0%" stopColor="#4A5C6A" stopOpacity="0.4" />
+                      <stop offset="100%" stopColor="#9BA8AB" stopOpacity="0.7" />
                     </linearGradient>
                   </defs>
 
@@ -281,7 +281,7 @@ export const EvidenceGraph: React.FC<EvidenceGraphProps> = ({ graph }) => {
                         <path
                           d={d}
                           fill="none"
-                          stroke={isConnected ? '#F0D8E4' : 'url(#edge-grad)'}
+                          stroke={isConnected ? '#CCD0CF' : 'url(#edge-grad)'}
                           strokeWidth={isConnected ? 2.5 : 1.5}
                           strokeDasharray={e.relation === 'EXTRACTS_CLAIM' ? '4 3' : undefined}
                           markerEnd={isConnected ? 'url(#arrow-active)' : 'url(#arrow)'}
@@ -302,14 +302,14 @@ export const EvidenceGraph: React.FC<EvidenceGraphProps> = ({ graph }) => {
                     const isPartial = node.status === 'PARTIALLY_VERIFIED';
 
                     const strokeColor = isSelected
-                      ? '#F0D8E4'
+                      ? '#CCD0CF'
                       : isVerified
                       ? '#10b981'
                       : isNotVerified
                       ? '#f43f5e'
                       : isPartial
                       ? '#f59e0b'
-                      : '#9B4080';
+                      : '#4A5C6A';
 
                     return (
                       <g
@@ -323,7 +323,7 @@ export const EvidenceGraph: React.FC<EvidenceGraphProps> = ({ graph }) => {
                           <circle
                             r="28"
                             fill="none"
-                            stroke="#C888A8"
+                            stroke="#9BA8AB"
                             strokeWidth="3"
                             strokeDasharray="4 3"
                             className="animate-spin"
@@ -334,7 +334,7 @@ export const EvidenceGraph: React.FC<EvidenceGraphProps> = ({ graph }) => {
                         {/* Node circle */}
                         <circle
                           r="20"
-                          fill="#3A0828"
+                          fill="#11212D"
                           stroke={strokeColor}
                           strokeWidth={isSelected ? 3 : 2}
                           className="transition-transform group-hover:scale-110"
@@ -344,7 +344,7 @@ export const EvidenceGraph: React.FC<EvidenceGraphProps> = ({ graph }) => {
                         <text
                           textAnchor="middle"
                           dy="4"
-                          fill="#F0D8E4"
+                          fill="#CCD0CF"
                           fontSize="9"
                           fontWeight="bold"
                           fontFamily="monospace"
@@ -360,14 +360,14 @@ export const EvidenceGraph: React.FC<EvidenceGraphProps> = ({ graph }) => {
                             width={Math.min(150, Math.max(60, node.label.length * 7))}
                             height="18"
                             rx="5"
-                            fill="rgba(26, 5, 18, 0.85)"
+                            fill="rgba(6, 20, 27, 0.85)"
                             stroke={strokeColor}
                             strokeWidth="1"
                           />
                           <text
                             textAnchor="middle"
                             dy="3"
-                            fill="#F0D8E4"
+                            fill="#CCD0CF"
                             fontSize="10"
                             fontWeight="600"
                           >

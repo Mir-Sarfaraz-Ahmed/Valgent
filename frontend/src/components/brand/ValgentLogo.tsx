@@ -32,8 +32,8 @@ export const ValgentLogo: React.FC<ValgentLogoProps> = ({
       <div
         className={`${iconSizes[size]} rounded-xl flex items-center justify-center relative overflow-hidden shadow-sm`}
         style={{
-          background: 'linear-gradient(135deg, #3A0828 0%, #6B1850 55%, #9B4080 100%)',
-          border: '1px solid rgba(200, 136, 168, 0.35)',
+          background: 'linear-gradient(135deg, #11212D 0%, #253745 55%, #4A5C6A 100%)',
+          border: '1px solid rgba(155, 168, 171, 0.35)',
         }}
       >
         <svg
@@ -46,12 +46,12 @@ export const ValgentLogo: React.FC<ValgentLogoProps> = ({
           strokeLinejoin="round"
         >
           <path d="M6 5 L12 18 L18 5" stroke="url(#logo-grad)" />
-          <circle cx="18" cy="5" r="1.8" fill="#F0D8E4" stroke="none" />
+          <circle cx="18" cy="5" r="1.8" fill="#CCD0CF" stroke="none" />
           <defs>
             <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#F0D8E4" />
-              <stop offset="50%" stopColor="#C888A8" />
-              <stop offset="100%" stopColor="#9B4080" />
+              <stop offset="0%" stopColor="#CCD0CF" />
+              <stop offset="50%" stopColor="#9BA8AB" />
+              <stop offset="100%" stopColor="#4A5C6A" />
             </linearGradient>
           </defs>
         </svg>
