@@ -123,11 +123,11 @@ export const LandingPage: React.FC = () => {
                 {/* 5-Step Narrative Micro-Flow */}
                 <div className="flex flex-col gap-3.5 py-4 relative">
                   {/* Connecting line */}
-                  <div className="absolute left-5 sm:left-6 top-6 bottom-6 w-0.5 bg-gradient-to-b from-[var(--color-merlot)] via-[var(--color-mauve)] to-[var(--color-dusty-rose)] opacity-50" />
+                  <div className="absolute left-5 top-[22px] bottom-[22px] w-0.5 -translate-x-1/2 bg-gradient-to-b from-[var(--color-merlot)] via-[var(--color-mauve)] to-[var(--color-dusty-rose)] opacity-70 z-0" />
 
                   {/* Stage 1: Repository Ingestion */}
                   <div className="flex items-start gap-3.5 relative z-10">
-                    <div className="w-10 h-10 rounded-xl bg-white/5 dark:bg-white/[0.04] backdrop-blur-md border border-white/10 dark:border-white/[0.08] flex items-center justify-center text-[var(--color-dusty-rose)] flex-shrink-0 shadow-sm mt-0.5">
+                    <div className="w-10 h-10 rounded-xl bg-[var(--surface-card-elevated)] border border-[var(--border-strong)] flex items-center justify-center text-[var(--color-dusty-rose)] flex-shrink-0 shadow-md mt-0.5">
                       <GitBranch className="w-5 h-5" />
                     </div>
                     <div className="flex flex-col min-w-0">
@@ -143,7 +143,7 @@ export const LandingPage: React.FC = () => {
 
                   {/* Stage 2: Deterministic Static Analysis */}
                   <div className="flex items-start gap-3.5 relative z-10">
-                    <div className="w-10 h-10 rounded-xl bg-white/5 dark:bg-white/[0.04] backdrop-blur-md border border-white/10 dark:border-white/[0.08] flex items-center justify-center text-[var(--color-mauve)] flex-shrink-0 shadow-sm mt-0.5">
+                    <div className="w-10 h-10 rounded-xl bg-[var(--surface-card-elevated)] border border-emerald-500/30 flex items-center justify-center text-emerald-400 flex-shrink-0 shadow-md mt-0.5">
                       <Code2 className="w-5 h-5" />
                     </div>
                     <div className="flex flex-col min-w-0">
@@ -159,7 +159,7 @@ export const LandingPage: React.FC = () => {
 
                   {/* Stage 3: Directed Evidence Graph */}
                   <div className="flex items-start gap-3.5 relative z-10">
-                    <div className="w-10 h-10 rounded-xl bg-white/5 dark:bg-white/[0.04] backdrop-blur-md border border-white/10 dark:border-white/[0.08] flex items-center justify-center text-[var(--color-dusty-rose)] flex-shrink-0 shadow-sm mt-0.5">
+                    <div className="w-10 h-10 rounded-xl bg-[var(--surface-card-elevated)] border border-[var(--color-mauve)]/40 flex items-center justify-center text-[var(--color-dusty-rose)] flex-shrink-0 shadow-md mt-0.5">
                       <Network className="w-5 h-5" />
                     </div>
                     <div className="flex flex-col min-w-0">
@@ -175,7 +175,7 @@ export const LandingPage: React.FC = () => {
 
                   {/* Stage 4: Targeted AI Reasoning */}
                   <div className="flex items-start gap-3.5 relative z-10">
-                    <div className="w-10 h-10 rounded-xl bg-white/5 dark:bg-white/[0.04] backdrop-blur-md border border-white/10 dark:border-white/[0.08] flex items-center justify-center text-[var(--color-pale-blush)] flex-shrink-0 shadow-sm mt-0.5">
+                    <div className="w-10 h-10 rounded-xl bg-[var(--surface-card-elevated)] border border-[var(--color-dusty-rose)]/40 flex items-center justify-center text-[var(--color-pale-blush)] flex-shrink-0 shadow-md mt-0.5">
                       <Sparkles className="w-5 h-5 text-[var(--color-dusty-rose)]" />
                     </div>
                     <div className="flex flex-col min-w-0">
