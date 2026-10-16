@@ -3,7 +3,7 @@
 Valgent is an AI-powered Build & Validation Agent.
 
 ## Setup
-1. Copy `.env.example` to `.env` and configure `GEMINI_API_KEY`.
+1. Copy `.env.example` to `.env` and configure `GEMINI_API_KEY` (and optional `TINYFISH_API_KEY`).
 2. Run `npm install`
 3. Run `npm run build`
 4. Run `npm run start`
@@ -20,7 +20,7 @@ Valgent V0.2 uses a hardened Docker execution layer to execute untrusted reposit
 6. **Network Policy**: Configurable network access (defaults to restricted `none`).
 7. **User Isolation**: Runs as non-root `node` user (`1000:1000`).
 8. **Command Abstraction**: Only pre-approved package manager operations (`npm run test`, `npm run build`, etc.) are permitted. No arbitrary host commands are executed.
-9. **Environment Isolation**: No host environment variables (especially `GEMINI_API_KEY`) are passed into the container.
+9. **Environment Isolation**: No host environment variables (especially `GEMINI_API_KEY` and `TINYFISH_API_KEY`) are passed into the container.
 10. **Cleanup**: Ephemeral `--rm` containers are strictly force-removed upon execution completion or timeout.
 
 ## Tests

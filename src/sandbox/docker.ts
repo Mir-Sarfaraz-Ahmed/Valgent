@@ -72,6 +72,7 @@ export class DockerSandbox {
     return new Promise((resolve) => {
       const sanitizedEnv = { ...process.env };
       delete sanitizedEnv.GEMINI_API_KEY;
+      delete sanitizedEnv.TINYFISH_API_KEY;
       delete sanitizedEnv.OPENROUTER_API_KEY;
 
       const child = spawn('docker', dockerArgs, {

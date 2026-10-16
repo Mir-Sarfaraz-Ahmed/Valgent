@@ -41,7 +41,7 @@ Runtime environment variables visible in `.env.example`:
 
 ```env
 GEMINI_API_KEY=
-OPENROUTER_API_KEY=
+TINYFISH_API_KEY=
 PORT=3000
 ```
 

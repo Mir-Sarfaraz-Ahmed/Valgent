@@ -86,12 +86,14 @@ router.post('/analyze', async (req: Request, res: Response) => {
     if (body.llm_policy?.preferred_providers) {
       for (const pref of body.llm_policy.preferred_providers) {
         if (pref === 'gemini') providers.push(new GeminiProvider(llmTimeoutMs));
-        if (pref === 'openrouter') providers.push(new OpenRouterProvider(llmTimeoutMs));
+        if (pref === 'openrouter' && process.env.OPENROUTER_API_KEY) providers.push(new OpenRouterProvider(llmTimeoutMs));
       }
     }
     if (providers.length === 0) {
       providers.push(new GeminiProvider(llmTimeoutMs));
-      providers.push(new OpenRouterProvider(llmTimeoutMs));
+      if (process.env.OPENROUTER_API_KEY) {
+        providers.push(new OpenRouterProvider(llmTimeoutMs));
+      }
     }
     const llmRouter = new LLMRouter(providers);
 
