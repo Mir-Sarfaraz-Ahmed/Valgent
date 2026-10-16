@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppSidebar } from '../components/navigation/AppSidebar';
 import { WorkspaceHeader } from '../components/navigation/WorkspaceHeader';
@@ -56,6 +56,7 @@ export const WorkspacePage: React.FC = () => {
   const [uploadedFiles, setUploadedFiles] = useState<
     Array<{
       id?: string;
+      tempId?: string;
       name: string;
       size: string;
       status: 'Ready' | 'Parsing';
@@ -64,6 +65,9 @@ export const WorkspacePage: React.FC = () => {
     }>
   >([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [isUploadingFiles, setIsUploadingFiles] = useState<boolean>(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Load requirement files for current project from Supabase Storage & DB with signed URLs
   useEffect(() => {
@@ -248,11 +252,23 @@ export const WorkspacePage: React.FC = () => {
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0] && project) {
-      const file = e.target.files[0];
+  const processAndUploadFiles = async (files: FileList | File[]) => {
+    if (!project || !files || files.length === 0) return;
+    const fileArray = Array.from(files);
+    if (fileArray.length === 0) return;
+
+    setIsUploadingFiles(true);
+
+    for (const file of fileArray) {
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       const sizeStr = (file.size / 1024).toFixed(1) + ' KB';
-      const tempEntry = { name: file.name, size: sizeStr, status: 'Parsing' as const };
+      const tempEntry = {
+        tempId,
+        name: file.name,
+        size: sizeStr,
+        status: 'Parsing' as const,
+      };
+
       setUploadedFiles((prev) => [...prev, tempEntry]);
 
       try {
@@ -265,7 +281,7 @@ export const WorkspacePage: React.FC = () => {
 
           setUploadedFiles((prev) =>
             prev.map((f) =>
-              f.name === file.name
+              f.tempId === tempId
                 ? {
                     ...f,
                     id: uploaded.id,
@@ -276,15 +292,59 @@ export const WorkspacePage: React.FC = () => {
                 : f
             )
           );
-          return;
+        } else {
+          setUploadedFiles((prev) =>
+            prev.map((f) =>
+              f.tempId === tempId ? { ...f, status: 'Ready' } : f
+            )
+          );
         }
       } catch (uploadErr) {
-        console.warn('Failed to upload requirement file to storage:', uploadErr);
+        console.warn(`Failed to upload ${file.name} to storage:`, uploadErr);
+        setUploadedFiles((prev) =>
+          prev.map((f) =>
+            f.tempId === tempId ? { ...f, status: 'Ready' } : f
+          )
+        );
       }
+    }
 
-      setUploadedFiles((prev) =>
-        prev.map((f) => (f.name === file.name ? { ...f, status: 'Ready' } : f))
-      );
+    setIsUploadingFiles(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDragging) setIsDragging(true);
+  };
+
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      await processAndUploadFiles(e.dataTransfer.files);
+    }
+  };
+
+  const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      await processAndUploadFiles(e.target.files);
+      e.target.value = '';
     }
   };
 
@@ -623,23 +683,37 @@ export const WorkspacePage: React.FC = () => {
               <section className="dashboard-card flex flex-col gap-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <h3 className="text-base sm:text-lg font-bold font-heading text-[var(--text-primary)]">
-                      Specification & Requirements Documents
-                    </h3>
+                    <div className="flex items-center gap-2.5">
+                      <h3 className="text-base sm:text-lg font-bold font-heading text-[var(--text-primary)]">
+                        Specification & Requirements Documents
+                      </h3>
+                      {uploadedFiles.length > 0 && (
+                        <span className="text-xs px-2.5 py-0.5 rounded-full font-mono font-bold bg-[var(--color-merlot)] text-[var(--color-pale-blush)] border border-[var(--border-soft)]">
+                          {uploadedFiles.length} {uploadedFiles.length === 1 ? 'file' : 'files'}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1 leading-relaxed">
-                      Upload Markdown specifications (.md) or JSON/YAML schemas to extract requirements and audit them against code AST.
+                      Upload or drag & drop Markdown specifications (.md), JSON/YAML schemas, or text requirements to extract requirements and audit against code AST.
                     </p>
                   </div>
-                  <label className="btn-secondary text-xs sm:text-sm cursor-pointer py-2 px-4 self-start sm:self-auto shadow-sm flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingFiles}
+                    className="btn-secondary text-xs sm:text-sm cursor-pointer py-2 px-4 self-start sm:self-auto shadow-sm flex items-center gap-2 hover:border-[var(--color-dusty-rose)] transition-colors"
+                  >
                     <UploadCloud className="w-4 h-4 text-[var(--color-dusty-rose)]" />
-                    <span>Upload specification</span>
-                    <input
-                      type="file"
-                      accept=".md,.txt,.json,.yaml,.yml"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
-                  </label>
+                    <span>Upload files</span>
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept=".md,.txt,.json,.yaml,.yml"
+                    onChange={handleFileInputChange}
+                    className="hidden"
+                  />
                 </div>
 
                 {/* Capability Limitation Note */}
@@ -647,51 +721,113 @@ export const WorkspacePage: React.FC = () => {
                   <Info className="w-4 h-4 text-[var(--color-mauve)] flex-shrink-0 mt-0.5" />
                   <p>
                     <strong>Supported Formats: </strong>
-                    Markdown (.md) and structured JSON/YAML text specifications. Note: Deep PDF/DOCX/PPTX document intelligence and video demonstration analysis are planned for upcoming releases. Document upload registers requirements for AST matching and does not substitute for verified repository code.
+                    Markdown (.md), JSON, YAML, and TXT text specifications. Note: Deep PDF/DOCX/PPTX document intelligence and video demonstration analysis are planned for upcoming releases. Document upload registers requirements for AST matching and does not substitute for verified repository code.
                   </p>
                 </div>
 
-                {/* Uploaded Files Chips / List */}
-                {uploadedFiles.length > 0 ? (
-                  <div className="flex flex-wrap items-center gap-3 pt-2">
-                    {uploadedFiles.map((file, i) => (
-                      <div
-                        key={file.id || i}
-                        className="inline-flex items-center gap-3 px-4 py-2.5 rounded-xl bg-black/5 dark:bg-white/5 border border-[var(--border-soft)] text-xs sm:text-sm"
-                      >
-                        <FileText className="w-4 h-4 text-[var(--color-dusty-rose)] flex-shrink-0" />
-                        {file.signedUrl ? (
-                          <a
-                            href={file.signedUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            download={file.name}
-                            title="Open or download private document via secure signed URL"
-                            className="font-semibold text-[var(--text-primary)] hover:underline hover:text-[var(--color-mauve)] flex items-center gap-1.5 transition-colors"
-                          >
-                            <span>{file.name}</span>
-                            <ExternalLink className="w-3.5 h-3.5 opacity-60 hover:opacity-100 flex-shrink-0" />
-                          </a>
-                        ) : (
-                          <span className="font-semibold text-[var(--text-primary)]">{file.name}</span>
-                        )}
-                        <span className="text-xs text-[var(--text-muted)] font-mono">({file.size})</span>
-                        <span className="text-xs font-bold text-[var(--status-verified)] bg-[var(--status-verified-bg)] border border-[var(--status-verified-border)] px-2 py-0.5 rounded-md">
-                          {file.status}
-                        </span>
-                        <button
-                          onClick={() => removeFile(i)}
-                          className="text-[var(--text-muted)] hover:text-red-400 ml-1 p-1 rounded-md hover:bg-white/10 transition-colors"
-                          title="Remove file"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
+                {/* Drag and Drop Zone */}
+                <div
+                  onDragOver={handleDragOver}
+                  onDragEnter={handleDragEnter}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`group relative cursor-pointer rounded-2xl border-2 border-dashed p-6 sm:p-8 transition-all duration-200 flex flex-col items-center justify-center text-center ${
+                    isDragging
+                      ? 'border-[var(--color-dusty-rose)] bg-[var(--color-merlot)]/20 scale-[1.01] shadow-lg shadow-[var(--color-dusty-rose)]/10 ring-2 ring-[var(--color-dusty-rose)]/30'
+                      : 'border-[var(--border-strong)] hover:border-[var(--color-dusty-rose)]/70 bg-black/[0.015] dark:bg-white/[0.015] hover:bg-black/[0.03] dark:hover:bg-white/[0.025]'
+                  }`}
+                >
+                  <div
+                    className={`p-3.5 rounded-2xl transition-all duration-300 ${
+                      isDragging
+                        ? 'scale-110 bg-[var(--color-merlot)] text-[var(--color-pale-blush)]'
+                        : 'bg-black/5 dark:bg-white/5 text-[var(--color-dusty-rose)] group-hover:scale-105 group-hover:text-[var(--color-pale-blush)]'
+                    }`}
+                  >
+                    <UploadCloud className={`w-7 h-7 ${isDragging ? 'animate-bounce' : ''}`} />
                   </div>
-                ) : (
-                  <div className="p-6 rounded-xl border border-dashed border-[var(--border-soft)] text-center text-xs text-[var(--text-muted)]">
-                    No specification files uploaded yet. Supported: Markdown (.md), JSON, YAML.
+
+                  <div className="mt-3 space-y-1">
+                    <p className="text-xs sm:text-sm font-semibold text-[var(--text-primary)]">
+                      {isDragging ? (
+                        <span className="text-[var(--color-pale-blush)] font-bold">
+                          Drop specification files to upload
+                        </span>
+                      ) : (
+                        <>
+                          <span className="text-[var(--color-pale-blush)] font-bold underline underline-offset-2">
+                            Click to browse
+                          </span>{' '}
+                          or drag & drop multiple files here
+                        </>
+                      )}
+                    </p>
+                    <p className="text-[11px] sm:text-xs text-[var(--text-muted)]">
+                      Select or drop multiple files simultaneously (.md, .json, .yaml, .yml, .txt)
+                    </p>
+                  </div>
+
+                  {isUploadingFiles && (
+                    <div className="mt-3 flex items-center gap-2 text-xs text-[var(--color-pale-blush)] animate-pulse">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Uploading to Supabase Storage...</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Uploaded Files Chips / List */}
+                {uploadedFiles.length > 0 && (
+                  <div className="flex flex-col gap-2.5 pt-1">
+                    <div className="flex items-center justify-between text-xs font-semibold text-[var(--text-muted)]">
+                      <span>Uploaded Specifications</span>
+                      <span className="font-mono">{uploadedFiles.length} {uploadedFiles.length === 1 ? 'document' : 'documents'}</span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      {uploadedFiles.map((file, i) => (
+                        <div
+                          key={file.id || file.tempId || i}
+                          className="inline-flex items-center gap-3 px-4 py-2.5 rounded-xl bg-black/5 dark:bg-white/5 border border-[var(--border-soft)] text-xs sm:text-sm hover:border-[var(--border-strong)] transition-colors"
+                        >
+                          <FileText className="w-4 h-4 text-[var(--color-dusty-rose)] flex-shrink-0" />
+                          {file.signedUrl ? (
+                            <a
+                              href={file.signedUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              download={file.name}
+                              title="Open or download private document via secure signed URL"
+                              className="font-semibold text-[var(--text-primary)] hover:underline hover:text-[var(--color-mauve)] flex items-center gap-1.5 transition-colors"
+                            >
+                              <span>{file.name}</span>
+                              <ExternalLink className="w-3.5 h-3.5 opacity-60 hover:opacity-100 flex-shrink-0" />
+                            </a>
+                          ) : (
+                            <span className="font-semibold text-[var(--text-primary)]">{file.name}</span>
+                          )}
+                          <span className="text-xs text-[var(--text-muted)] font-mono">({file.size})</span>
+                          <span
+                            className={`text-xs font-bold px-2 py-0.5 rounded-md flex items-center gap-1.5 ${
+                              file.status === 'Ready'
+                                ? 'text-[var(--status-verified)] bg-[var(--status-verified-bg)] border border-[var(--status-verified-border)]'
+                                : 'text-[var(--color-pale-blush)] bg-[var(--color-merlot)]/30 border border-[var(--border-soft)] animate-pulse'
+                            }`}
+                          >
+                            {file.status === 'Parsing' && (
+                              <RefreshCw className="w-3 h-3 animate-spin flex-shrink-0" />
+                            )}
+                            {file.status}
+                          </span>
+                          <button
+                            onClick={() => removeFile(i)}
+                            className="text-[var(--text-muted)] hover:text-red-400 ml-1 p-1 rounded-md hover:bg-white/10 transition-colors"
+                            title="Remove file"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </section>
