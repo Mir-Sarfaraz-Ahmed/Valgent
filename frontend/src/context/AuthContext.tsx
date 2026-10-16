@@ -7,6 +7,7 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   signInWithGoogle: () => Promise<void>;
+  signInWithGithub: () => Promise<void>;
   signInWithEmail: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   signUpWithEmail: (email: string, pass: string, fullName: string) => Promise<{ success: boolean; error?: string; needsConfirmation?: boolean }>;
   signOut: () => Promise<void>;
@@ -151,6 +152,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // GitHub OAuth sign-in via Supabase
+  const signInWithGithub = async () => {
+    try {
+      setError(null);
+      setLoading(true);
+      const { data, error: authError } = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: {
+          redirectTo: `${window.location.origin}/projects`,
+        },
+      });
+
+      if (authError) {
+        if (
+          authError.message?.toLowerCase().includes('not enabled') ||
+          (authError as any).code === 'validation_failed' ||
+          (authError as any).status === 400
+        ) {
+          throw new Error('GitHub sign-in is not enabled in your Supabase project dashboard. Please enable GitHub under Authentication → Providers in Supabase, or sign in using your email and password.');
+        }
+        throw authError;
+      }
+
+      if (data?.url) {
+        window.location.assign(data.url);
+      }
+    } catch (err: any) {
+      console.error('GitHub sign-in error:', err);
+      const friendlyMessage =
+        err?.message?.includes('not enabled')
+          ? 'GitHub sign-in is not enabled in your Supabase project dashboard. Please enable GitHub under Authentication → Providers in Supabase, or sign in using your email and password.'
+          : err?.message || 'GitHub sign-in failed. Please verify provider settings or sign in with email.';
+      setError(friendlyMessage);
+      setLoading(false);
+      throw new Error(friendlyMessage);
+    }
+  };
+
   // Email + Password sign-in via Supabase
   const signInWithEmail = async (email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
     try {
@@ -262,6 +301,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         error,
         signInWithGoogle,
+        signInWithGithub,
         signInWithEmail,
         signUpWithEmail,
         signOut,

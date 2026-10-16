@@ -3,7 +3,7 @@ export interface UserProfile {
   email: string;
   fullName: string;
   avatarUrl?: string;
-  provider?: 'email' | 'google' | 'demo';
+  provider?: 'email' | 'google' | 'github' | 'demo';
   createdAt: string;
 }
 
