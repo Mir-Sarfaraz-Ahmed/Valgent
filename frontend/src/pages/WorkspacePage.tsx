@@ -4,6 +4,7 @@ import { AppSidebar } from '../components/navigation/AppSidebar';
 import { WorkspaceHeader } from '../components/navigation/WorkspaceHeader';
 import { ProjectService, ApiError } from '../lib/api-client';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 import { Project } from '../types/project';
 import { ClaimTable } from '../components/claims/ClaimTable';
 import { EvidenceGraph } from '../components/evidence/EvidenceGraph';
@@ -42,10 +43,37 @@ export const WorkspacePage: React.FC = () => {
   const [analysisError, setAnalysisError] = useState<ApiError | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
 
-  const [uploadedFiles, setUploadedFiles] = useState<Array<{ name: string; size: string; status: 'Ready' | 'Parsing' }>>([
+  const [uploadedFiles, setUploadedFiles] = useState<Array<{ id?: string; name: string; size: string; status: 'Ready' | 'Parsing'; path?: string }>>([
     { name: 'PRD_Specification_v1.0.md', size: '12.4 KB', status: 'Ready' },
   ]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+
+  // Load requirement files for current project from Supabase
+  useEffect(() => {
+    if (!project?.id) return;
+    const fetchRequirementFiles = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('requirement_files')
+          .select('*')
+          .eq('project_id', project.id);
+        if (!error && data && data.length > 0) {
+          setUploadedFiles(
+            data.map((f: any) => ({
+              id: f.id,
+              name: f.name,
+              size: (Number(f.size_bytes) / 1024).toFixed(1) + ' KB',
+              status: 'Ready',
+              path: f.file_url,
+            }))
+          );
+        }
+      } catch {
+        // keep local state
+      }
+    };
+    fetchRequirementFiles();
+  }, [project?.id]);
 
   const loadProject = useCallback(async () => {
     const id = projectId;
@@ -134,16 +162,61 @@ export const WorkspacePage: React.FC = () => {
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0] && project) {
       const file = e.target.files[0];
       const sizeStr = (file.size / 1024).toFixed(1) + ' KB';
-      setUploadedFiles((prev) => [...prev, { name: file.name, size: sizeStr, status: 'Ready' }]);
+      const tempEntry = { name: file.name, size: sizeStr, status: 'Parsing' as const };
+      setUploadedFiles((prev) => [...prev, tempEntry]);
+
+      try {
+        const filePath = `${project.id}/${Date.now()}_${file.name}`;
+        await supabase.storage.from('valgent').upload(filePath, file);
+
+        if (user?.id) {
+          const { data } = await supabase.from('requirement_files').insert([{
+            project_id: project.id,
+            owner_id: user.id,
+            name: file.name,
+            size_bytes: file.size,
+            file_type: file.type || 'text/markdown',
+            file_url: filePath,
+            status: 'parsed',
+          }]).select().single();
+
+          setUploadedFiles((prev) =>
+            prev.map((f) => (f.name === file.name ? { ...f, id: data?.id, path: filePath, status: 'Ready' } : f))
+          );
+          return;
+        }
+      } catch (uploadErr) {
+        console.warn('Uploaded to local workspace session:', uploadErr);
+      }
+
+      setUploadedFiles((prev) =>
+        prev.map((f) => (f.name === file.name ? { ...f, status: 'Ready' } : f))
+      );
     }
   };
 
-  const removeFile = (index: number) => {
+  const removeFile = async (index: number) => {
+    const target = uploadedFiles[index];
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
+
+    if (target?.path) {
+      try {
+        await supabase.storage.from('valgent').remove([target.path]);
+      } catch {
+        // ignore
+      }
+    }
+    if (target?.id) {
+      try {
+        await supabase.from('requirement_files').delete().eq('id', target.id);
+      } catch {
+        // ignore
+      }
+    }
   };
 
   if (!project) {
