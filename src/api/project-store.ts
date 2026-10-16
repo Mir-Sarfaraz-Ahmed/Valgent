@@ -396,21 +396,30 @@ export class ProjectStore {
     }
   }
 
-  public static getAll(): StoredProject[] {
-    return [...ProjectStore.ensureLoaded()];
+  public static getAll(ownerId?: string): StoredProject[] {
+    const list = ProjectStore.ensureLoaded();
+    if (!ownerId || ownerId === 'all') {
+      return [...list];
+    }
+    return list.filter(p => (p.ownerId || 'default') === ownerId);
   }
 
-  public static getById(id: string): StoredProject | null {
+  public static getById(id: string, ownerId?: string): StoredProject | null {
     const list = ProjectStore.ensureLoaded();
     const found = list.find(p => p.id === id);
-    if (found && !found.latestReport && ['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(id)) {
+    if (!found) return null;
+    const projOwner = found.ownerId || 'default';
+    if (ownerId && ownerId !== 'all' && projOwner !== ownerId && projOwner !== 'default') {
+      return null;
+    }
+    if (!found.latestReport && ['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(id)) {
       found.latestReport = createSampleReport(found.id, found.repositoryUrl, found.commitSha || 'latest');
       ProjectStore.persist();
     }
-    return found ? { ...found } : null;
+    return { ...found };
   }
 
-  public static create(data: { name: string; repositoryUrl: string; branch?: string; description?: string }): StoredProject {
+  public static create(data: { name: string; repositoryUrl: string; branch?: string; description?: string; ownerId?: string }): StoredProject {
     const list = ProjectStore.ensureLoaded();
     const hash = crypto.createHash('sha256').update(data.repositoryUrl + Date.now()).digest('hex').substring(0, 8);
     const now = new Date().toISOString();
@@ -426,7 +435,7 @@ export class ProjectStore {
       createdAt: now,
       updatedAt: now,
       lastAnalyzedAt: now,
-      ownerId: 'default',
+      ownerId: data.ownerId?.trim() || 'default',
       reports: []
     };
 
@@ -450,17 +459,24 @@ export class ProjectStore {
     return { ...list[idx] };
   }
 
-  public static delete(id: string): boolean {
+  public static delete(id: string, ownerId?: string): boolean {
     const list = ProjectStore.ensureLoaded();
     const idx = list.findIndex(p => p.id === id);
     if (idx === -1) return false;
+
+    if (ownerId && ownerId !== 'all') {
+      const projOwner = list[idx].ownerId || 'default';
+      if (projOwner !== ownerId && projOwner !== 'default') {
+        return false;
+      }
+    }
 
     list.splice(idx, 1);
     ProjectStore.persist();
     return true;
   }
 
-  public static attachReport(projectId: string, report: any): StoredProject | null {
+  public static attachReport(projectId: string, report: any, ownerId?: string): StoredProject | null {
     const list = ProjectStore.ensureLoaded();
     let project = list.find(p => p.id === projectId);
 
@@ -479,12 +495,15 @@ export class ProjectStore {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         lastAnalyzedAt: report.analysis?.completed_at || new Date().toISOString(),
-        ownerId: 'default',
+        ownerId: ownerId || 'default',
         latestReport: report,
         reports: [report]
       };
       list.unshift(project);
     } else {
+      if (ownerId && (!project.ownerId || project.ownerId === 'default')) {
+        project.ownerId = ownerId;
+      }
       project.latestReport = report;
       project.commitSha = report.project?.repository_commit || project.commitSha;
       project.status = report.summary?.not_verified > 0 ? 'needs_review' : 'completed';

@@ -493,16 +493,36 @@ export function normalizeBackendReport(raw: any, repoUrl: string): ProjectReport
 // ProjectService: Real API Endpoints with Isolated Offline Demo Fallback
 // ---------------------------------------------------------------------------
 
+function getCurrentUserId(): string | undefined {
+  try {
+    const raw = localStorage.getItem('valgent-auth-user');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.id) return parsed.id;
+    }
+  } catch {
+    // ignore
+  }
+  return undefined;
+}
+
 export const ProjectService = {
   /**
-   * Fetch all projects from the backend server.
+   * Fetch all projects from the backend server for current user.
    * If server is offline, returns cached projects and sets isOfflineFallback=true.
    */
-  async getProjects(): Promise<ProjectsFetchResult> {
+  async getProjects(ownerId?: string): Promise<ProjectsFetchResult> {
+    const userId = ownerId || getCurrentUserId();
+    const cacheKey = userId ? `valgent-server-projects-cache-${userId}` : 'valgent-server-projects-cache';
+
     try {
-      const res = await fetch(`${API_BASE_URL}/projects`, {
+      const url = userId ? `${API_BASE_URL}/projects?ownerId=${encodeURIComponent(userId)}` : `${API_BASE_URL}/projects`;
+      const res = await fetch(url, {
         method: 'GET',
-        headers: { 'Accept': 'application/json' },
+        headers: {
+          'Accept': 'application/json',
+          ...(userId ? { 'x-user-id': userId } : {})
+        },
       });
 
       if (!res.ok) {
@@ -522,12 +542,12 @@ export const ProjectService = {
         status: (p.status as ProjectStatus) || 'in_progress',
         lastAnalyzedAt: p.lastAnalyzedAt || p.updatedAt || p.createdAt,
         createdAt: p.createdAt,
-        ownerId: 'default',
+        ownerId: p.ownerId || userId || 'default',
         latestReport: p.latestReport ? normalizeBackendReport(p.latestReport, p.repositoryUrl) : undefined,
       }));
 
       // Cache successful response in localStorage for offline resilience
-      localStorage.setItem('valgent-server-projects-cache', JSON.stringify(serverProjects));
+      localStorage.setItem(cacheKey, JSON.stringify(serverProjects));
 
       return {
         projects: serverProjects,
@@ -537,14 +557,16 @@ export const ProjectService = {
       console.warn('[ProjectService] Backend unreachable, using isolated offline cache:', err?.message);
 
       // Check offline cache or DEMO_FIXTURES
-      const cached = localStorage.getItem('valgent-server-projects-cache');
-      let fallbackList = DEMO_FIXTURES;
+      const cached = localStorage.getItem(cacheKey);
+      let fallbackList: Project[] = [];
       if (cached) {
         try {
           fallbackList = JSON.parse(cached);
         } catch {
-          fallbackList = DEMO_FIXTURES;
+          fallbackList = [];
         }
+      } else if (!userId) {
+        fallbackList = DEMO_FIXTURES;
       }
 
       return {
@@ -558,11 +580,17 @@ export const ProjectService = {
   /**
    * Fetch a single project by ID from backend.
    */
-  async getProjectById(id: string): Promise<Project | null> {
+  async getProjectById(id: string, ownerId?: string): Promise<Project | null> {
+    const userId = ownerId || getCurrentUserId();
+    const cacheKey = userId ? `valgent-server-projects-cache-${userId}` : 'valgent-server-projects-cache';
+
     try {
       const res = await fetch(`${API_BASE_URL}/projects/${id}`, {
         method: 'GET',
-        headers: { 'Accept': 'application/json' },
+        headers: {
+          'Accept': 'application/json',
+          ...(userId ? { 'x-user-id': userId } : {})
+        },
       });
 
       if (res.status === 404) {
@@ -584,13 +612,13 @@ export const ProjectService = {
         status: (p.status as ProjectStatus) || 'in_progress',
         lastAnalyzedAt: p.lastAnalyzedAt || p.updatedAt || p.createdAt,
         createdAt: p.createdAt,
-        ownerId: 'default',
+        ownerId: p.ownerId || userId || 'default',
         latestReport: p.latestReport ? normalizeBackendReport(p.latestReport, p.repositoryUrl) : undefined,
       };
     } catch {
-      // Fallback search in DEMO_FIXTURES / cache
-      const cached = localStorage.getItem('valgent-server-projects-cache');
-      const list = cached ? JSON.parse(cached) : DEMO_FIXTURES;
+      // Fallback search in cache or DEMO_FIXTURES
+      const cached = localStorage.getItem(cacheKey);
+      const list = cached ? JSON.parse(cached) : (!userId ? DEMO_FIXTURES : []);
       return list.find((p: Project) => p.id === id) || null;
     }
   },
@@ -598,23 +626,29 @@ export const ProjectService = {
   /**
    * Create a project via real POST /api/v1/projects.
    */
-  async createProject(name: string, repositoryUrl: string, branch = 'main', description = ''): Promise<Project> {
+  async createProject(name: string, repositoryUrl: string, branch = 'main', description = '', ownerId?: string): Promise<Project> {
     if (!name.trim()) {
       throw new Error('Project name is required');
     }
     if (!repositoryUrl.trim()) {
       throw new Error('Repository URL is required');
     }
+    const userId = ownerId || getCurrentUserId();
 
     try {
       const res = await fetch(`${API_BASE_URL}/projects`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...(userId ? { 'x-user-id': userId } : {})
+        },
         body: JSON.stringify({
           name: name.trim(),
           repositoryUrl: repositoryUrl.trim(),
           branch: branch.trim() || 'main',
           description: description.trim(),
+          ownerId: userId || 'default',
         }),
       });
 
@@ -634,7 +668,7 @@ export const ProjectService = {
         status: (p.status as ProjectStatus) || 'in_progress',
         lastAnalyzedAt: p.lastAnalyzedAt || p.createdAt,
         createdAt: p.createdAt,
-        ownerId: 'default',
+        ownerId: p.ownerId || userId || 'default',
       };
     } catch (err: any) {
       if (err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError')) {
@@ -649,11 +683,17 @@ export const ProjectService = {
    */
   async updateProject(
     id: string,
-    patch: Partial<{ name: string; description: string; branch: string; status: ProjectStatus; repositoryUrl: string }>
+    patch: Partial<{ name: string; description: string; branch: string; status: ProjectStatus; repositoryUrl: string }>,
+    ownerId?: string
   ): Promise<Project> {
+    const userId = ownerId || getCurrentUserId();
     const res = await fetch(`${API_BASE_URL}/projects/${id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...(userId ? { 'x-user-id': userId } : {})
+      },
       body: JSON.stringify(patch),
     });
 
@@ -673,7 +713,7 @@ export const ProjectService = {
       status: (p.status as ProjectStatus) || 'in_progress',
       lastAnalyzedAt: p.lastAnalyzedAt || p.updatedAt,
       createdAt: p.createdAt,
-      ownerId: 'default',
+      ownerId: p.ownerId || userId || 'default',
       latestReport: p.latestReport ? normalizeBackendReport(p.latestReport, p.repositoryUrl) : undefined,
     };
   },
@@ -681,24 +721,30 @@ export const ProjectService = {
   /**
    * Delete project via real DELETE /api/v1/projects/:id.
    */
-  async deleteProject(id: string): Promise<boolean> {
+  async deleteProject(id: string, ownerId?: string): Promise<boolean> {
+    const userId = ownerId || getCurrentUserId();
+    const cacheKey = userId ? `valgent-server-projects-cache-${userId}` : 'valgent-server-projects-cache';
+
     try {
       const res = await fetch(`${API_BASE_URL}/projects/${id}`, {
         method: 'DELETE',
-        headers: { 'Accept': 'application/json' },
+        headers: {
+          'Accept': 'application/json',
+          ...(userId ? { 'x-user-id': userId } : {})
+        },
       });
 
       if (!res.ok && res.status !== 404) {
         throw new Error(`Failed to delete project (HTTP ${res.status})`);
       }
 
-      // Also remove from offline cache
-      const cached = localStorage.getItem('valgent-server-projects-cache');
+      // Also remove from user's offline cache
+      const cached = localStorage.getItem(cacheKey);
       if (cached) {
         try {
           const list: Project[] = JSON.parse(cached);
           const filtered = list.filter((p) => p.id !== id);
-          localStorage.setItem('valgent-server-projects-cache', JSON.stringify(filtered));
+          localStorage.setItem(cacheKey, JSON.stringify(filtered));
         } catch {
           // ignore cache parse error
         }
@@ -717,7 +763,7 @@ export const ProjectService = {
    * Execute real POST /api/v1/analyze.
    * NEVER substitutes a fabricated report on error.
    */
-  async analyze(payload: AnalyzePayload): Promise<AnalysisResult> {
+  async analyze(payload: AnalyzePayload, ownerId?: string): Promise<AnalysisResult> {
     // Validate repository URL
     if (!payload.repository_url || !payload.repository_url.startsWith('http')) {
       return {
@@ -731,14 +777,21 @@ export const ProjectService = {
       };
     }
 
+    const userId = ownerId || getCurrentUserId();
+
     try {
       const res = await fetch(`${API_BASE_URL}/analyze`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...(userId ? { 'x-user-id': userId } : {})
+        },
         body: JSON.stringify({
           repository_url: payload.repository_url,
           commit_sha: payload.commit_sha || undefined,
           project_id: payload.project_id || undefined,
+          owner_id: userId,
           claims: payload.claims && payload.claims.length > 0 ? payload.claims : undefined,
           analysis_options: payload.analysis_options,
           execution_policy: payload.execution_policy,

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { AppSidebar } from '../components/navigation/AppSidebar';
 import { WorkspaceHeader } from '../components/navigation/WorkspaceHeader';
 import { ProjectService, ApiError } from '../lib/api-client';
+import { useAuth } from '../context/AuthContext';
 import { Project } from '../types/project';
 import { ClaimTable } from '../components/claims/ClaimTable';
 import { EvidenceGraph } from '../components/evidence/EvidenceGraph';
@@ -32,6 +33,7 @@ import { StatusBadge } from '../components/ui/StatusBadge';
 export const WorkspacePage: React.FC = () => {
   const { projectId, tab = 'overview' } = useParams<{ projectId?: string; tab?: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [project, setProject] = useState<Project | null>(null);
   const [activeTab, setActiveTab] = useState<string>(tab || 'overview');
@@ -46,19 +48,21 @@ export const WorkspacePage: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
   const loadProject = useCallback(async () => {
-    const id = projectId || 'proj-valgent-demo';
-    const found = await ProjectService.getProjectById(id);
-    if (found) {
-      setProject(found);
-      setRepoUrlInput(found.repositoryUrl);
-    } else {
-      const fallbackList = await ProjectService.getProjects();
-      if (fallbackList.projects.length > 0) {
-        setProject(fallbackList.projects[0]);
-        setRepoUrlInput(fallbackList.projects[0].repositoryUrl);
+    const id = projectId;
+    if (id) {
+      const found = await ProjectService.getProjectById(id, user?.id);
+      if (found) {
+        setProject(found);
+        setRepoUrlInput(found.repositoryUrl);
+        return;
       }
     }
-  }, [projectId]);
+    const fallbackList = await ProjectService.getProjects(user?.id);
+    if (fallbackList.projects.length > 0) {
+      setProject(fallbackList.projects[0]);
+      setRepoUrlInput(fallbackList.projects[0].repositoryUrl);
+    }
+  }, [projectId, user?.id]);
 
   useEffect(() => {
     loadProject();
@@ -101,7 +105,7 @@ export const WorkspacePage: React.FC = () => {
         analysis_options: {
           skip_execution: false,
         },
-      });
+      }, user?.id);
 
       if (result.success) {
         const updatedProject: Project = {

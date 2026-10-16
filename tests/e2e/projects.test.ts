@@ -87,4 +87,58 @@ describe('Project Management API & Store', () => {
     const notFoundRes = await request(app).get(`/api/v1/projects/${createdId}`);
     expect(notFoundRes.status).toBe(404);
   });
+
+  it('4. Enforces per-user project isolation via x-user-id header', async () => {
+    const aliceId = 'user-alice-test-111';
+    const bobId = 'user-bob-test-222';
+
+    // 1. Alice starts with 0 projects
+    const aliceInitial = await request(app)
+      .get('/api/v1/projects')
+      .set('x-user-id', aliceId);
+    expect(aliceInitial.status).toBe(200);
+    expect(aliceInitial.body.projects).toEqual([]);
+
+    // 2. Alice creates a project
+    const createRes = await request(app)
+      .post('/api/v1/projects')
+      .set('x-user-id', aliceId)
+      .send({
+        name: "Alice Private App",
+        repositoryUrl: "https://github.com/alice/private-app",
+        branch: "main",
+        description: "Alice personal verification"
+      });
+    expect(createRes.status).toBe(201);
+    expect(createRes.body.ownerId).toBe(aliceId);
+    const aliceProjectId = createRes.body.id;
+
+    // 3. Alice lists projects - sees her project
+    const aliceList = await request(app)
+      .get('/api/v1/projects')
+      .set('x-user-id', aliceId);
+    expect(aliceList.status).toBe(200);
+    expect(aliceList.body.projects.length).toBe(1);
+    expect(aliceList.body.projects[0].id).toBe(aliceProjectId);
+
+    // 4. Bob lists projects - sees 0 projects (isolated from Alice)
+    const bobList = await request(app)
+      .get('/api/v1/projects')
+      .set('x-user-id', bobId);
+    expect(bobList.status).toBe(200);
+    expect(bobList.body.projects).toEqual([]);
+
+    // 5. Bob tries to access Alice's project - receives 404
+    const bobAccess = await request(app)
+      .get(`/api/v1/projects/${aliceProjectId}`)
+      .set('x-user-id', bobId);
+    expect(bobAccess.status).toBe(404);
+
+    // 6. Cleanup: Alice deletes her project
+    const delRes = await request(app)
+      .delete(`/api/v1/projects/${aliceProjectId}`)
+      .set('x-user-id', aliceId);
+    expect(delRes.status).toBe(200);
+  });
 });
+

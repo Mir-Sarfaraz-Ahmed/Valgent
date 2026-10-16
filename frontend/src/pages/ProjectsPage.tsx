@@ -52,7 +52,7 @@ export const ProjectsPage: React.FC = () => {
   const loadProjects = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await ProjectService.getProjects();
+      const res = await ProjectService.getProjects(user?.id);
       setProjects(res.projects);
       setIsOfflineMode(res.isOfflineFallback);
     } catch {
@@ -60,7 +60,7 @@ export const ProjectsPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     loadProjects();
@@ -92,7 +92,8 @@ export const ProjectsPage: React.FC = () => {
         name,
         repoUrl,
         newBranch.trim() || 'main',
-        newDescription.trim()
+        newDescription.trim(),
+        user?.id
       );
       setIsModalOpen(false);
       setNewProjectName('');
@@ -112,7 +113,7 @@ export const ProjectsPage: React.FC = () => {
     setIsDeleting(true);
     setDeleteError(null);
     try {
-      await ProjectService.deleteProject(projectToDelete.id);
+      await ProjectService.deleteProject(projectToDelete.id, user?.id);
       setProjectToDelete(null);
       await loadProjects();
     } catch (err: any) {

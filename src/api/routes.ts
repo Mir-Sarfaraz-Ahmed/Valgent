@@ -24,6 +24,7 @@ const AnalyzeRequestSchema = z.object({
   repository_url: z.string().url(),
   commit_sha: z.string().optional(),
   project_id: z.string().optional(),
+  owner_id: z.string().optional(),
   claims: z.array(z.object({
     claim_id: z.string(),
     text: z.string()
@@ -321,7 +322,8 @@ router.post('/analyze', async (req: Request, res: Response) => {
     // Persist report in project store if applicable
     try {
       const targetProjectId = body.project_id || report.project.id;
-      ProjectStore.attachReport(targetProjectId, report);
+      const ownerId = body.owner_id || getOwnerId(req);
+      ProjectStore.attachReport(targetProjectId, report, ownerId);
     } catch (storeErr) {
       console.warn(`[${analysisId}] Non-fatal error attaching report to project store:`, storeErr);
     }
@@ -369,11 +371,26 @@ router.get('/health', (_req: Request, res: Response) => {
 });
 
 /**
- * List all projects with latest report and status
+ * Extract authenticated or request-specified owner ID
  */
-router.get('/projects', (_req: Request, res: Response) => {
+function getOwnerId(req: Request): string | undefined {
+  const headerId = req.headers['x-user-id'];
+  if (typeof headerId === 'string' && headerId.trim()) {
+    return headerId.trim();
+  }
+  if (typeof req.query.ownerId === 'string' && req.query.ownerId.trim()) {
+    return req.query.ownerId.trim();
+  }
+  return undefined;
+}
+
+/**
+ * List all projects with latest report and status (optionally filtered by user)
+ */
+router.get('/projects', (req: Request, res: Response) => {
   try {
-    const projects = ProjectStore.getAll();
+    const ownerId = getOwnerId(req);
+    const projects = ProjectStore.getAll(ownerId);
     res.status(200).json({ projects });
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to retrieve projects', details: err?.message });
@@ -387,13 +404,15 @@ const CreateProjectSchema = z.object({
   name: z.string().min(1, 'Project name is required'),
   repositoryUrl: z.string().url('A valid repository URL is required'),
   branch: z.string().optional().default('main'),
-  description: z.string().optional().default('')
+  description: z.string().optional().default(''),
+  ownerId: z.string().optional()
 });
 
 router.post('/projects', (req: Request, res: Response) => {
   try {
     const parsed = CreateProjectSchema.parse(req.body);
-    const project = ProjectStore.create(parsed);
+    const ownerId = parsed.ownerId || getOwnerId(req) || 'default';
+    const project = ProjectStore.create({ ...parsed, ownerId });
     res.status(201).json(project);
   } catch (err: any) {
     if (err instanceof z.ZodError) {
@@ -410,7 +429,8 @@ router.post('/projects', (req: Request, res: Response) => {
 router.get('/projects/:id', (req: Request, res: Response) => {
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : String(req.params.id);
-    const project = ProjectStore.getById(id);
+    const ownerId = getOwnerId(req);
+    const project = ProjectStore.getById(id, ownerId);
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
     }
@@ -442,7 +462,8 @@ router.patch('/projects/:id', (req: Request, res: Response) => {
 router.delete('/projects/:id', (req: Request, res: Response) => {
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : String(req.params.id);
-    const deleted = ProjectStore.delete(id);
+    const ownerId = getOwnerId(req);
+    const deleted = ProjectStore.delete(id, ownerId);
     if (!deleted) {
       return res.status(404).json({ error: 'Project not found' });
     }
