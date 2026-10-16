@@ -1,6 +1,6 @@
 import React from 'react';
-import { NavLink, useParams, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Network, FileText, Map, FolderGit2, LogOut, X } from 'lucide-react';
+import { Link, NavLink, useParams, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, Network, FileText, Map, FolderGit2, LogOut, X, Globe, ArrowUpRight } from 'lucide-react';
 import { ValgentLogo } from '../brand/ValgentLogo';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { useAuth } from '../../context/AuthContext';
@@ -53,6 +53,12 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 
   const navItems = [
     {
+      to: '/',
+      label: 'Landing Page',
+      icon: Globe,
+      end: true,
+    },
+    {
       to: activeProjectId ? `/projects/${activeProjectId}/overview` : '/projects',
       label: 'Overview',
       icon: LayoutDashboard,
@@ -89,7 +95,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       {/* Top Branding & Navigation */}
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between px-1.5 pt-0.5">
-          <ValgentLogo size="md" to="/projects" />
+          <ValgentLogo size="md" to="/" />
           {onClose && (
             <button
               onClick={onClose}
@@ -127,8 +133,22 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         </nav>
       </div>
 
-      {/* Bottom Area: Clean theme toggle and user account info (NO promo cards) */}
+      {/* Bottom Area: Clean theme toggle and user account info */}
       <div className="flex flex-col gap-3 pt-4 border-t border-[var(--border-soft)]">
+        {/* Landing Page Link Button */}
+        <Link
+          to="/"
+          onClick={() => onClose?.()}
+          className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-[var(--border-soft)] hover:border-[var(--color-mauve)]/50 transition-all group"
+          title="Access Landing Page"
+        >
+          <div className="flex items-center gap-2.5">
+            <Globe className="w-4 h-4 text-[var(--color-mauve)] group-hover:text-[var(--color-pale-blush)] transition-colors" />
+            <span>Landing Page</span>
+          </div>
+          <ArrowUpRight className="w-3.5 h-3.5 text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors" />
+        </Link>
+
         <div className="flex items-center justify-between px-2 py-1">
           <span className="text-xs font-medium text-[var(--text-muted)]">Theme</span>
           <ThemeToggle showLabel={true} />

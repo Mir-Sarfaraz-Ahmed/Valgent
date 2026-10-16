@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { AppSidebar } from '../components/navigation/AppSidebar';
 import { ProjectService } from '../lib/api-client';
 import { Project } from '../types/project';
@@ -16,7 +16,8 @@ import {
   Trash2,
   RefreshCw,
   Server,
-  WifiOff
+  WifiOff,
+  Globe
 } from 'lucide-react';
 import { ThemeToggle } from '../components/theme/ThemeToggle';
 import { useAuth } from '../context/AuthContext';
@@ -219,6 +220,16 @@ export const ProjectsPage: React.FC = () => {
                 </>
               )}
             </div>
+
+            {/* Access Landing Page Button */}
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-soft)] hover:border-[var(--color-mauve)]/50 transition-colors shadow-sm"
+              title="Access Landing Page"
+            >
+              <Globe className="w-3.5 h-3.5 text-[var(--color-mauve)]" />
+              <span className="hidden sm:inline">Landing Page</span>
+            </Link>
 
             <ThemeToggle showLabel={false} />
 

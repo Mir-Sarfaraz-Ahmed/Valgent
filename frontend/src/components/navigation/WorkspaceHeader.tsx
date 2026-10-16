@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, GitBranch, RefreshCw, GitCommit, Menu } from 'lucide-react';
+import { ChevronRight, GitBranch, RefreshCw, GitCommit, Menu, Globe } from 'lucide-react';
 import { Project } from '../../types/project';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { useAuth } from '../../context/AuthContext';
@@ -73,6 +73,16 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
             <span className="hidden sm:inline">{isRechecking ? 'Rechecking...' : 'Recheck'}</span>
           </button>
         )}
+
+        {/* Access Landing Page Button */}
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-soft)] hover:border-[var(--color-mauve)]/50 transition-colors shadow-sm"
+          title="Access Landing Page"
+        >
+          <Globe className="w-3.5 h-3.5 text-[var(--color-mauve)]" />
+          <span className="hidden sm:inline">Landing Page</span>
+        </Link>
 
         <ThemeToggle showLabel={false} />
 
