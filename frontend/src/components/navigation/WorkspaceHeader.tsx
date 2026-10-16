@@ -1,9 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, GitBranch, RefreshCw, GitCommit, PanelLeft, Home } from 'lucide-react';
+import { ChevronRight, GitBranch, GitCommit, PanelLeft } from 'lucide-react';
 import { Project } from '../../types/project';
-import { ThemeToggle } from '../theme/ThemeToggle';
-import { useAuth } from '../../context/AuthContext';
+import { HeaderActionDock } from './HeaderActionDock';
 
 interface WorkspaceHeaderProps {
   project: Project;
@@ -18,8 +17,6 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
   isRechecking = false,
   onMenuToggle,
 }) => {
-  const { user } = useAuth();
-
   return (
     <header className="w-full px-6 sm:px-8 lg:px-10 h-16 border-b border-[var(--border-soft)] bg-[var(--surface-card)] flex items-center justify-between z-10">
       {/* Left: Mobile Menu Trigger & Breadcrumbs */}
@@ -61,49 +58,13 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
         </div>
       </div>
 
-      {/* Right: Actions, Theme Toggle, Profile */}
+      {/* Right: Actions via Animated Morphing Dock */}
       <div className="flex items-center gap-2.5 flex-shrink-0">
-        {onRecheck && (
-          <button
-            onClick={onRecheck}
-            disabled={isRechecking}
-            className="btn-secondary text-xs sm:text-sm px-3 py-1.5"
-            title="Recheck against repository head"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRechecking ? 'animate-spin text-[var(--color-mauve)]' : ''}`} />
-            <span className="hidden sm:inline">{isRechecking ? 'Rechecking...' : 'Recheck'}</span>
-          </button>
-        )}
-
-        {/* Access Home Button */}
-        <Link
-          to="/"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-soft)] hover:border-[var(--color-mauve)]/50 transition-colors shadow-sm"
-          title="Home"
-        >
-          <Home className="w-3.5 h-3.5 text-[var(--color-mauve)]" />
-          <span className="hidden sm:inline">Home</span>
-        </Link>
-
-        <ThemeToggle showLabel={false} />
-
-        {user && (
-          <Link
-            to="/profile"
-            className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-tr from-[var(--color-merlot)] to-[var(--color-mauve)] text-[var(--color-pale-blush)] flex items-center justify-center font-bold text-xs uppercase shadow-sm flex-shrink-0 border border-[var(--border-soft)] hover:scale-105 hover:border-[var(--color-mauve)] transition-all"
-            title={`${user.fullName || user.email} (Customize Profile)`}
-          >
-            {user.avatarUrl ? (
-              <img
-                src={user.avatarUrl}
-                alt={user.fullName || 'User'}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <span>{user.fullName ? user.fullName[0] : 'U'}</span>
-            )}
-          </Link>
-        )}
+        <HeaderActionDock
+          showRecheck={Boolean(onRecheck)}
+          onRecheck={onRecheck}
+          isRechecking={isRechecking}
+        />
       </div>
     </header>
   );

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AppSidebar } from '../components/navigation/AppSidebar';
+import { HeaderActionDock } from '../components/navigation/HeaderActionDock';
 import { ProjectService } from '../lib/api-client';
 import { Project } from '../types/project';
 import {
@@ -197,61 +198,7 @@ export const ProjectsPage: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Backend Server Connectivity Status Indicator */}
-            <div
-              className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
-                isOfflineMode
-                  ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
-                  : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
-              }`}
-              title={
-                isOfflineMode
-                  ? 'Server offline or unreachable. Displaying cached reference projects.'
-                  : 'Connected to live Valgent AST verification backend.'
-              }
-            >
-              {isOfflineMode ? (
-                <>
-                  <WifiOff className="w-3 h-3 text-amber-400" />
-                  <span>Offline / Demo Fixtures</span>
-                </>
-              ) : (
-                <>
-                  <Server className="w-3 h-3 text-emerald-400" />
-                  <span>Live Server Connected</span>
-                </>
-              )}
-            </div>
-
-            {/* Access Home Button */}
-            <Link
-              to="/"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-soft)] hover:border-[var(--color-mauve)]/50 transition-colors shadow-sm"
-              title="Home"
-            >
-              <Home className="w-3.5 h-3.5 text-[var(--color-mauve)]" />
-              <span className="hidden sm:inline">Home</span>
-            </Link>
-
-            <ThemeToggle showLabel={false} />
-
-            {user && (
-              <Link
-                to="/profile"
-                className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-tr from-[var(--color-merlot)] to-[var(--color-mauve)] text-[var(--color-pale-blush)] flex items-center justify-center font-bold text-xs uppercase shadow-sm border border-[var(--border-soft)] hover:scale-105 hover:border-[var(--color-mauve)] transition-all"
-                title={`${user.fullName || user.email} (Customize Profile)`}
-              >
-                {user.avatarUrl ? (
-                  <img
-                    src={user.avatarUrl}
-                    alt={user.fullName || 'User'}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span>{user.fullName ? user.fullName[0] : 'U'}</span>
-                )}
-              </Link>
-            )}
+            <HeaderActionDock isOfflineMode={isOfflineMode} />
           </div>
         </header>
 

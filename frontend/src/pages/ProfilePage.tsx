@@ -22,6 +22,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { AppSidebar } from '../components/navigation/AppSidebar';
+import { HeaderActionDock } from '../components/navigation/HeaderActionDock';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { uploadUserAvatar } from '../lib/storage';
@@ -310,7 +311,7 @@ export const ProfilePage: React.FC = () => {
               )}
             </Button>
 
-            <ThemeToggle showLabel={false} />
+            <HeaderActionDock />
           </div>
         </header>
 
