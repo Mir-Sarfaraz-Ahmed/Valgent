@@ -296,7 +296,7 @@ export const ProfilePage: React.FC = () => {
               size="sm"
               onClick={handleSave}
               disabled={isSaving}
-              className="inline-flex items-center gap-1.5 flex-shrink-0 shadow-sm"
+              className="inline-flex items-center gap-1.5 flex-shrink-0 shadow-md font-semibold"
             >
               {isSaving ? (
                 <>

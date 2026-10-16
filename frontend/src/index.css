@@ -307,34 +307,36 @@ code, pre, .font-mono {
     box-shadow: var(--shadow-elevated);
   }
 
-  /* Primary Button */
+  /* Primary Button - Vibrant Brand Purple / Violet CTA with High Contrast */
   .btn-primary {
-    background: linear-gradient(135deg, var(--color-merlot) 0%, #354B5C 50%, var(--color-mauve) 100%);
-    color: var(--color-pale-blush);
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6366f1 100%);
+    color: #ffffff !important;
     font-weight: 600;
     padding: 10px 20px;
     border-radius: var(--radius-control);
-    border: 1px solid rgba(155, 168, 171, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.25);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    box-shadow: var(--shadow-cta);
-    transition: filter 0.15s ease, transform 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
+    box-shadow: 0 4px 14px 0 rgba(124, 58, 237, 0.35);
+    transition: filter 0.15s ease, transform 0.15s ease, opacity 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
     text-decoration: none;
     font-size: 14px;
     line-height: 1.25;
   }
 
   .btn-primary:hover:not(:disabled) {
-    filter: brightness(1.15);
+    filter: brightness(1.12);
     transform: translateY(-1px);
-    border-color: var(--color-dusty-rose);
+    box-shadow: 0 6px 20px 0 rgba(124, 58, 237, 0.45);
+    border-color: rgba(255, 255, 255, 0.4);
   }
 
   .btn-primary:active:not(:disabled) {
     transform: translateY(0);
+    box-shadow: 0 2px 8px 0 rgba(124, 58, 237, 0.3);
   }
 
   .btn-primary:disabled {
