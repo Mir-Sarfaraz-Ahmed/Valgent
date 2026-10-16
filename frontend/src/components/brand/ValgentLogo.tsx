@@ -64,7 +64,7 @@ export const ValgentLogo: React.FC<ValgentLogoProps> = ({
         </span>
         {showSubtitle && (
           <span className="text-[10px] font-medium tracking-wider text-[var(--text-muted)] uppercase mt-0.5">
-            AI Build & Validation Agent
+            Validation Agent
           </span>
         )}
       </div>
