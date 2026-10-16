@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none">
+  <defs>
+    <linearGradient id="valgent-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#11212D"/>
+      <stop offset="55%" stop-color="#253745"/>
+      <stop offset="100%" stop-color="#4A5C6A"/>
+    </linearGradient>
+    <linearGradient id="valgent-stroke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#CCD0CF"/>
+      <stop offset="50%" stop-color="#9BA8AB"/>
+      <stop offset="100%" stop-color="#4A5C6A"/>
+    </linearGradient>
+  </defs>
+  <!-- Squircle rounded background container -->
+  <rect x="1" y="1" width="30" height="30" rx="9" fill="url(#valgent-bg)" stroke="#9BA8AB" stroke-opacity="0.4" stroke-width="1.2"/>
+  <!-- Stylized Valgent V mark with dot -->
+  <g transform="translate(4, 4)">
+    <path d="M6 5 L12 18 L18 5" fill="none" stroke="url(#valgent-stroke)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="18" cy="5" r="2.1" fill="#CCD0CF"/>
+  </g>
+</svg>
