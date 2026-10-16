@@ -111,10 +111,43 @@ router.post('/analyze', async (req: Request, res: Response) => {
     plog(analysisId, 'Mapping project...');
     const map = await ProjectMapper.map(descriptor);
 
-    // 3. Extract Claims (record if present)
-    if (body.claims && body.claims.length > 0) {
+    // 3. Extract Claims (record if present, or auto-detect from repository specification files)
+    let activeClaims = body.claims || [];
+    if (activeClaims.length === 0) {
+      try {
+        const fsSync = require('fs');
+        const pathModule = require('path');
+        const { extractClaimsFromDocument } = require('../analyzers/claims-parser');
+        const candidateFiles = [
+          'claims.md',
+          'spec.md',
+          'specs.md',
+          'requirements.md',
+          'specification.md',
+          'test_claims.md',
+          'verification_claims.md'
+        ];
+
+        for (const candidate of candidateFiles) {
+          const candidatePath = pathModule.join(descriptor.local_path, candidate);
+          if (fsSync.existsSync(candidatePath)) {
+            const fileContent = fsSync.readFileSync(candidatePath, 'utf-8');
+            const extracted = extractClaimsFromDocument(fileContent, candidate);
+            if (extracted.length > 0) {
+              activeClaims = extracted;
+              plog(analysisId, `Auto-extracted ${extracted.length} claims from repository specification document: ${candidate}`);
+              break;
+            }
+          }
+        }
+      } catch (scanErr) {
+        console.warn('Repository specification scan non-fatal error:', scanErr);
+      }
+    }
+
+    if (activeClaims.length > 0) {
       tracker.enterStage('CLAIMS_EXTRACTED');
-      plog(analysisId, `Extracted ${body.claims.length} claims from request`);
+      plog(analysisId, `Extracted ${activeClaims.length} claims for verification`);
     }
 
     // 4. Document Analysis & Static Analysis
@@ -157,7 +190,7 @@ router.post('/analyze', async (req: Request, res: Response) => {
     const { EvidenceGraphBuilder } = require('../evidence/graph-builder');
     const graphBuilder = new EvidenceGraphBuilder();
     const execResults = executionResult?.telemetry ? [executionResult.telemetry] : [];
-    const evidenceGraphObj = graphBuilder.build(body.claims || [], engine.getEvidence(), semanticModel, execResults);
+    const evidenceGraphObj = graphBuilder.build(activeClaims, engine.getEvidence(), semanticModel, execResults);
     const evidenceGraph = evidenceGraphObj.serialize();
 
     // Record evidence IDs
@@ -184,13 +217,13 @@ router.post('/analyze', async (req: Request, res: Response) => {
         validateClaims: async () => { throw new Error('LLM skipped by policy'); }
       } : llmRouter;
 
-    if (body.claims && body.claims.length > 0) {
+    if (activeClaims.length > 0) {
       tracker.enterStage('AUTONOMOUS_VALIDATION');
       plog(analysisId, body.analysis_options?.skip_llm ? 'Autonomous validation (LLM skipped)...' : 'Autonomous validation...');
       const valOrch = new ValidationOrchestrator(engine, descriptor.local_path, body.analysis_options?.skip_execution);
 
       try {
-        claimsValidation = await valOrch.orchestrate(body.claims, evidenceGraphObj, effectiveLlmRouter as any, contextDigest);
+        claimsValidation = await valOrch.orchestrate(activeClaims, evidenceGraphObj, effectiveLlmRouter as any, contextDigest);
       } catch (err: any) {
         perr(analysisId, 'Autonomous validation failed', err);
         claimsValidation.audit_warnings.push({ message: err.message });

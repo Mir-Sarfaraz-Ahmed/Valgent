@@ -86,7 +86,36 @@ ${evidenceJson}
   }
 
   public async validateClaims(packages: ClaimValidationPackage[]): Promise<LLMValidationResult> {
+    if (packages.length === 0) {
+      return { validations: [], roadmap: [] };
+    }
 
+    // Chunk into batches of 10 to prevent prompt overflow or output token limits
+    if (packages.length > 10) {
+      const batchSize = 10;
+      const allValidations: any[] = [];
+      const allRoadmap: any[] = [];
+
+      for (let i = 0; i < packages.length; i += batchSize) {
+        const batch = packages.slice(i, i + batchSize);
+        try {
+          const batchResult = await this.validateClaimsSingleBatch(batch);
+          allValidations.push(...batchResult.validations);
+          allRoadmap.push(...batchResult.roadmap);
+        } catch (batchErr) {
+          console.warn(`[GeminiProvider] Batch ${Math.floor(i / batchSize) + 1} validation failed:`, batchErr);
+        }
+      }
+
+      if (allValidations.length > 0) {
+        return { validations: allValidations, roadmap: allRoadmap };
+      }
+    }
+
+    return this.validateClaimsSingleBatch(packages);
+  }
+
+  private async validateClaimsSingleBatch(packages: ClaimValidationPackage[]): Promise<LLMValidationResult> {
     let packagesText = '';
     packages.forEach((pkg, i) => {
       packagesText += `\n==================================================\nPACKAGE ${i + 1}\n==================================================\n`;

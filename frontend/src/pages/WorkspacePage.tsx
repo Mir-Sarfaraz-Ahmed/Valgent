@@ -11,6 +11,7 @@ import {
   fetchProjectRequirementFilesWithSignedUrls,
 } from '../lib/storage';
 import { Project } from '../types/project';
+import { extractClaimsFromDocument, ExtractedClaim } from '../lib/claims-parser';
 import { ClaimTable } from '../components/claims/ClaimTable';
 import { EvidenceGraph } from '../components/evidence/EvidenceGraph';
 import { RoadmapTaskList } from '../components/roadmap/RoadmapTaskList';
@@ -67,6 +68,7 @@ export const WorkspacePage: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isUploadingFiles, setIsUploadingFiles] = useState<boolean>(false);
+  const [extractedClaims, setExtractedClaims] = useState<ExtractedClaim[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Load requirement files for current project from Supabase Storage & DB with signed URLs
@@ -78,6 +80,47 @@ export const WorkspacePage: React.FC = () => {
         const files = await fetchProjectRequirementFilesWithSignedUrls(project.id);
         if (isMounted) {
           setUploadedFiles(files);
+        }
+
+        // Try to load cached claims for project
+        const cached = localStorage.getItem(`valgent-claims-${project.id}`);
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length > 0 && isMounted) {
+              setExtractedClaims(parsed);
+              return;
+            }
+          } catch {}
+        }
+
+        // If files exist and have signed URLs, fetch content to extract claims
+        if (files.length > 0) {
+          for (const f of files) {
+            if (f.signedUrl) {
+              try {
+                const res = await fetch(f.signedUrl);
+                if (res.ok) {
+                  const text = await res.text();
+                  const found = extractClaimsFromDocument(text, f.name);
+                  if (found.length > 0 && isMounted) {
+                    setExtractedClaims((prev) => {
+                      const merged = [...prev];
+                      for (const c of found) {
+                        if (!merged.some((m) => m.claim_id === c.claim_id)) {
+                          merged.push(c);
+                        }
+                      }
+                      localStorage.setItem(`valgent-claims-${project.id}`, JSON.stringify(merged));
+                      return merged;
+                    });
+                  }
+                }
+              } catch (fetchErr) {
+                console.warn('Could not read signed file for claim extraction:', fetchErr);
+              }
+            }
+          }
         }
       } catch (err) {
         console.warn('Failed to load project requirement files:', err);
@@ -208,6 +251,7 @@ export const WorkspacePage: React.FC = () => {
       const result = await ProjectService.analyze({
         repository_url: targetRepo,
         project_id: project.id,
+        claims: extractedClaims.length > 0 ? extractedClaims : undefined,
         analysis_options: {
           skip_execution: false,
         },
@@ -270,6 +314,28 @@ export const WorkspacePage: React.FC = () => {
       };
 
       setUploadedFiles((prev) => [...prev, tempEntry]);
+
+      // Read file content in browser and extract claims immediately
+      try {
+        const textContent = await file.text();
+        const found = extractClaimsFromDocument(textContent, file.name);
+        if (found.length > 0) {
+          setExtractedClaims((prev) => {
+            const merged = [...prev];
+            for (const c of found) {
+              if (!merged.some((m) => m.claim_id === c.claim_id)) {
+                merged.push(c);
+              }
+            }
+            if (project?.id) {
+              localStorage.setItem(`valgent-claims-${project.id}`, JSON.stringify(merged));
+            }
+            return merged;
+          });
+        }
+      } catch (readErr) {
+        console.warn('Failed to extract claims from file:', readErr);
+      }
 
       try {
         if (user?.id) {
@@ -357,6 +423,13 @@ export const WorkspacePage: React.FC = () => {
         await deleteProjectRequirementFile(target.id || '', target.path);
       } catch (err) {
         console.warn('Failed to remove requirement file:', err);
+      }
+    }
+
+    if (uploadedFiles.length <= 1) {
+      setExtractedClaims([]);
+      if (project?.id) {
+        localStorage.removeItem(`valgent-claims-${project.id}`);
       }
     }
   };
@@ -827,6 +900,44 @@ export const WorkspacePage: React.FC = () => {
                           </button>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Extracted Claims Summary Card */}
+                {extractedClaims.length > 0 && (
+                  <div className="p-4 sm:p-5 rounded-2xl bg-black/[0.025] dark:bg-white/[0.025] border border-[var(--border-strong)] flex flex-col gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-[var(--status-verified)] flex-shrink-0" />
+                        <h4 className="text-xs sm:text-sm font-bold font-heading text-[var(--text-primary)]">
+                          {extractedClaims.length} Claims Identified & Armed for Verification
+                        </h4>
+                      </div>
+                      <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-[var(--status-verified-bg)] text-[var(--status-verified)] border border-[var(--status-verified-border)] font-bold self-start sm:self-auto">
+                        Ready for Sync & Recheck
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                      These requirements were extracted from your specification document. Valgent will cross-examine them against repository AST declarations, routes, database operations, and evidence nodes during the next analysis run.
+                    </p>
+
+                    <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto no-scrollbar pt-1">
+                      {extractedClaims.slice(0, 20).map((claim) => (
+                        <span
+                          key={claim.claim_id}
+                          title={claim.text}
+                          className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-[var(--color-merlot)]/30 text-[var(--color-pale-blush)] border border-[var(--border-soft)] font-medium cursor-help"
+                        >
+                          {claim.claim_id}
+                        </span>
+                      ))}
+                      {extractedClaims.length > 20 && (
+                        <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-black/5 dark:bg-white/5 text-[var(--text-muted)] border border-[var(--border-soft)] self-center">
+                          +{extractedClaims.length - 20} more claims
+                        </span>
+                      )}
                     </div>
                   </div>
                 )}
