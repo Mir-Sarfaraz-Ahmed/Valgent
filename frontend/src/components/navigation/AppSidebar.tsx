@@ -1,6 +1,21 @@
 import React from 'react';
 import { Link, NavLink, useParams, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Network, FileText, Map, FolderGit2, LogOut, X, Home, ArrowUpRight } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Network,
+  FileText,
+  Map,
+  FolderGit2,
+  LogOut,
+  X,
+  Home,
+  ArrowUpRight,
+  User,
+  Pin,
+  PinOff,
+  PanelLeft,
+  ChevronRight,
+} from 'lucide-react';
 import { ValgentLogo } from '../brand/ValgentLogo';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { useAuth } from '../../context/AuthContext';
@@ -10,6 +25,7 @@ interface AppSidebarProps {
   currentProjectId?: string;
   isOpen?: boolean;
   onClose?: () => void;
+  onToggleOpen?: () => void;
 }
 
 export const AppSidebar: React.FC<AppSidebarProps> = ({
@@ -18,12 +34,68 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   onClose,
 }) => {
   const params = useParams<{ projectId?: string }>();
-  const savedActiveId = typeof window !== 'undefined' ? localStorage.getItem('valgent-last-active-project-id') : null;
-  const rawId = currentProjectId || params.projectId || (savedActiveId && !['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(savedActiveId) ? savedActiveId : null);
-  const activeProjectId = rawId && !['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(rawId) ? rawId : null;
+  const savedActiveId =
+    typeof window !== 'undefined'
+      ? localStorage.getItem('valgent-last-active-project-id')
+      : null;
+  const rawId =
+    currentProjectId ||
+    params.projectId ||
+    (savedActiveId &&
+    !['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(
+      savedActiveId
+    )
+      ? savedActiveId
+      : null);
+  const activeProjectId =
+    rawId &&
+    !['proj-valgent-demo', 'proj-civicpulse-ai', 'proj-campusconnect'].includes(
+      rawId
+    )
+      ? rawId
+      : null;
   const { user, signOut, updateAvatarUrl } = useAuth();
   const [isUploadingAvatar, setIsUploadingAvatar] = React.useState(false);
   const navigate = useNavigate();
+
+  // Desktop collapse & hover state
+  // Defaults to false so it is hidden until hovered or clicked
+  const [isPinned, setIsPinned] = React.useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('valgent-sidebar-pinned') === 'true';
+    }
+    return false;
+  });
+
+  const [isHovered, setIsHovered] = React.useState(false);
+  const hoverTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnter = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setIsHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsHovered(false);
+    }, 220); // 220ms grace period to prevent jitter
+  };
+
+  const togglePin = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsPinned((prev) => {
+      const next = !prev;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('valgent-sidebar-pinned', String(next));
+      }
+      return next;
+    });
+  };
+
+  const isDesktopOpen = isPinned || isHovered || isOpen;
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0] && user) {
@@ -88,6 +160,12 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       icon: Map,
       end: false,
     },
+    {
+      to: '/profile',
+      label: 'Profile',
+      icon: User,
+      end: true,
+    },
   ];
 
   const sidebarContent = (
@@ -96,15 +174,35 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between px-1.5 pt-0.5">
           <ValgentLogo size="md" to="/" />
-          {onClose && (
+          <div className="flex items-center gap-1">
+            {/* Desktop Pin / Unpin button */}
             <button
-              onClick={onClose}
-              className="lg:hidden p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-              aria-label="Close menu"
+              onClick={togglePin}
+              className="hidden lg:flex p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+              title={
+                isPinned
+                  ? 'Unpin sidebar (auto-hide when mouse leaves)'
+                  : 'Pin sidebar open'
+              }
+              aria-label={isPinned ? 'Unpin sidebar' : 'Pin sidebar'}
             >
-              <X className="w-5 h-5" />
+              {isPinned ? (
+                <Pin className="w-4 h-4 text-[var(--color-mauve)] fill-current" />
+              ) : (
+                <PinOff className="w-4 h-4" />
+              )}
             </button>
-          )}
+
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="lg:hidden p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                aria-label="Close menu"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Navigation Links */}
@@ -150,19 +248,22 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         </Link>
 
         <div className="flex items-center justify-between px-2 py-1">
-          <span className="text-xs font-medium text-[var(--text-muted)]">Theme</span>
+          <span className="text-xs font-medium text-[var(--text-muted)]">
+            Theme
+          </span>
           <ThemeToggle showLabel={true} />
         </div>
 
         {user && (
-          <div className="flex items-center justify-between p-2 rounded-xl bg-black/5 dark:bg-white/5 border border-[var(--border-soft)]">
-            <div className="flex items-center gap-2.5 overflow-hidden">
-              <label
-                htmlFor="sidebar-avatar-input"
-                className="relative group cursor-pointer flex-shrink-0"
-                title="Click to update avatar image"
-              >
-                <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-tr from-[var(--color-merlot)] to-[var(--color-mauve)] text-[var(--color-pale-blush)] flex items-center justify-center font-bold text-xs uppercase border border-[var(--border-soft)] relative">
+          <div className="flex items-center justify-between p-2 rounded-xl bg-black/5 dark:bg-white/5 border border-[var(--border-soft)] hover:border-[var(--color-mauve)]/40 transition-colors">
+            <Link
+              to="/profile"
+              onClick={() => onClose?.()}
+              className="flex items-center gap-2.5 overflow-hidden flex-1 group"
+              title="Customize your profile"
+            >
+              <div className="relative group cursor-pointer flex-shrink-0">
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-tr from-[var(--color-merlot)] to-[var(--color-mauve)] text-[var(--color-pale-blush)] flex items-center justify-center font-bold text-xs uppercase border border-[var(--border-soft)] group-hover:scale-105 transition-transform relative">
                   {user.avatarUrl ? (
                     <img
                       src={user.avatarUrl}
@@ -178,30 +279,22 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                     </div>
                   )}
                 </div>
-                <input
-                  id="sidebar-avatar-input"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAvatarChange}
-                  className="hidden"
-                  disabled={isUploadingAvatar}
-                />
-              </label>
+              </div>
               <div className="flex flex-col overflow-hidden text-left">
-                <span className="text-xs font-semibold text-[var(--text-primary)] truncate">
+                <span className="text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--color-pale-blush)] truncate transition-colors">
                   {user.fullName || 'User'}
                 </span>
                 <span className="text-[11px] text-[var(--text-muted)] truncate">
-                  {user.email || 'user@valgent.ai'}
+                  {user.role || user.email || 'user@valgent.ai'}
                 </span>
               </div>
-            </div>
+            </Link>
 
             <button
               onClick={handleSignOut}
               title="Sign out"
               aria-label="Sign out"
-              className="p-1.5 text-[var(--text-muted)] hover:text-red-500 transition-colors rounded-lg hover:bg-black/5 dark:hover:bg-white/10"
+              className="p-1.5 text-[var(--text-muted)] hover:text-red-500 transition-colors rounded-lg hover:bg-black/5 dark:hover:bg-white/10 flex-shrink-0"
             >
               <LogOut className="w-4 h-4" />
             </button>
@@ -213,12 +306,66 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 
   return (
     <>
-      {/* Desktop Fixed Sidebar */}
-      <aside className="hidden lg:flex w-64 h-screen sticky top-0 flex-col border-r border-[var(--border-soft)] bg-[var(--surface-sidebar)] flex-shrink-0 z-30">
+      {/* 1. Desktop Left-Edge Invisible Hotzone (Hovering left edge slides panel out) */}
+      {!isPinned && (
+        <div
+          className="hidden lg:block fixed inset-y-0 left-0 w-3.5 z-40 cursor-pointer"
+          onMouseEnter={handleMouseEnter}
+          onClick={handleMouseEnter}
+          title="Hover to open sidebar"
+          aria-hidden="true"
+        />
+      )}
+
+      {/* 2. Desktop Floating Sleek Handle / Tab on left edge (Affordance to hover or click) */}
+      {!isPinned && (
+        <button
+          onClick={() => {
+            if (isDesktopOpen) {
+              setIsHovered(false);
+              onClose?.();
+            } else {
+              setIsHovered(true);
+            }
+          }}
+          onMouseEnter={handleMouseEnter}
+          className={`hidden lg:flex fixed top-24 left-0 z-40 items-center justify-center py-2.5 px-1.5 rounded-r-xl bg-[var(--surface-card)]/90 hover:bg-[var(--surface-card-elevated)] backdrop-blur-md border border-l-0 border-[var(--border-soft)] hover:border-[var(--color-mauve)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] shadow-xl transition-all duration-300 group ${
+            isDesktopOpen
+              ? 'opacity-0 pointer-events-none -translate-x-full'
+              : 'opacity-100 translate-x-0'
+          }`}
+          title="Hover or click to expand side panel"
+          aria-label="Expand side panel"
+        >
+          <div className="flex flex-col items-center gap-1.5">
+            <PanelLeft className="w-4 h-4 text-[var(--color-mauve)] group-hover:text-[var(--color-pale-blush)] transition-colors" />
+            <ChevronRight className="w-3 h-3 text-[var(--text-muted)] group-hover:translate-x-0.5 transition-transform" />
+          </div>
+        </button>
+      )}
+
+      {/* 3. Desktop Dock Spacer when pinned (So page layout smoothly accommodates pinned sidebar) */}
+      <div
+        className={`hidden lg:block flex-shrink-0 transition-all duration-300 ease-in-out ${
+          isPinned ? 'w-64' : 'w-0'
+        }`}
+        aria-hidden="true"
+      />
+
+      {/* 4. Desktop Sidebar Panel (Floating if unpinned, docked if pinned) */}
+      <aside
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        className={`hidden lg:flex fixed inset-y-0 left-0 w-64 h-screen flex-col border-r border-[var(--border-soft)] bg-[var(--surface-sidebar)] z-50 transform transition-all duration-300 ease-out ${
+          isDesktopOpen
+            ? 'translate-x-0 shadow-2xl shadow-black/60'
+            : '-translate-x-full shadow-none pointer-events-none'
+        }`}
+      >
         {sidebarContent}
       </aside>
 
-      {/* Mobile Drawer Backdrop & Slide-out Menu */}
+      {/* 5. Mobile Drawer Backdrop & Menu */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/75 backdrop-blur-sm z-40 lg:hidden transition-opacity"

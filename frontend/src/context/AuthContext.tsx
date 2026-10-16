@@ -14,6 +14,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   clearError: () => void;
   updateAvatarUrl: (url: string) => void;
+  updateProfile: (updates: Partial<UserProfile>) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,21 +38,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let rawAvatar = authUser.user_metadata?.avatar_url;
     let fullName =
       authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'Authenticated User';
+    let username = authUser.user_metadata?.username;
+    let bio = authUser.user_metadata?.bio;
+    let role = authUser.user_metadata?.role;
+    let company = authUser.user_metadata?.company;
+    let location = authUser.user_metadata?.location;
+    let githubUrl = authUser.user_metadata?.github_url;
+    let preferredTheme = authUser.user_metadata?.preferred_theme;
+    let llmProvider = authUser.user_metadata?.llm_provider;
 
-    // Check profiles table for user's stored avatar_url
+    // Check profiles table for user's stored fields
     try {
       const { data: profileRow } = await supabase
         .from('profiles')
-        .select('avatar_url, full_name')
+        .select('*')
         .eq('id', authUser.id)
         .maybeSingle();
 
-      if (profileRow?.avatar_url) {
-        rawAvatar = profileRow.avatar_url;
-      }
-      if (profileRow?.full_name) {
-        fullName = profileRow.full_name;
-      }
+      if (profileRow?.avatar_url) rawAvatar = profileRow.avatar_url;
+      if (profileRow?.full_name) fullName = profileRow.full_name;
+      if (profileRow?.username) username = profileRow.username;
+      if (profileRow?.bio) bio = profileRow.bio;
+      if (profileRow?.role) role = profileRow.role;
+      if (profileRow?.company) company = profileRow.company;
+      if (profileRow?.location) location = profileRow.location;
+      if (profileRow?.github_url) githubUrl = profileRow.github_url;
     } catch {
       // ignore
     }
@@ -65,6 +76,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       avatarUrl,
       provider: (authUser.app_metadata?.provider as any) || defaultProvider,
       createdAt: authUser.created_at || new Date().toISOString(),
+      username,
+      bio,
+      role,
+      company,
+      location,
+      githubUrl,
+      preferredTheme,
+      llmProvider,
     };
   };
 
@@ -319,6 +338,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  const updateProfile = async (updates: Partial<UserProfile>): Promise<{ success: boolean; error?: string }> => {
+    try {
+      if (!user) return { success: false, error: 'No user signed in' };
+      const updated: UserProfile = { ...user, ...updates };
+      setUser(updated);
+      localStorage.setItem('valgent-auth-user', JSON.stringify(updated));
+
+      // Attempt to sync to Supabase if authenticated
+      try {
+        const metadataUpdates: Record<string, any> = {};
+        if (updates.fullName !== undefined) metadataUpdates.full_name = updates.fullName;
+        if (updates.avatarUrl !== undefined) metadataUpdates.avatar_url = updates.avatarUrl;
+        if (updates.username !== undefined) metadataUpdates.username = updates.username;
+        if (updates.role !== undefined) metadataUpdates.role = updates.role;
+        if (updates.company !== undefined) metadataUpdates.company = updates.company;
+        if (updates.bio !== undefined) metadataUpdates.bio = updates.bio;
+        if (updates.location !== undefined) metadataUpdates.location = updates.location;
+        if (updates.githubUrl !== undefined) metadataUpdates.github_url = updates.githubUrl;
+        if (updates.preferredTheme !== undefined) metadataUpdates.preferred_theme = updates.preferredTheme;
+        if (updates.llmProvider !== undefined) metadataUpdates.llm_provider = updates.llmProvider;
+        if (updates.autoRunVerification !== undefined) metadataUpdates.auto_run_verification = updates.autoRunVerification;
+        if (updates.strictMode !== undefined) metadataUpdates.strict_mode = updates.strictMode;
+        if (updates.showConfidenceScores !== undefined) metadataUpdates.show_confidence_scores = updates.showConfidenceScores;
+
+        if (Object.keys(metadataUpdates).length > 0) {
+          await supabase.auth.updateUser({ data: metadataUpdates });
+        }
+
+        await supabase.from('profiles').upsert({
+          id: user.id,
+          full_name: updated.fullName,
+          avatar_url: updated.avatarUrl,
+          username: updated.username,
+          bio: updated.bio,
+          role: updated.role,
+          company: updated.company,
+          location: updated.location,
+          github_url: updated.githubUrl,
+          updated_at: new Date().toISOString(),
+        });
+      } catch (e) {
+        console.warn('Supabase remote profile sync note:', e);
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error updating profile:', err);
+      return { success: false, error: err.message || 'Failed to update profile' };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -332,6 +402,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signOut,
         clearError,
         updateAvatarUrl,
+        updateProfile,
       }}
     >
       {children}

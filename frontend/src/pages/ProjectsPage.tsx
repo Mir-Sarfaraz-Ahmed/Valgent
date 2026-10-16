@@ -17,7 +17,8 @@ import {
   RefreshCw,
   Server,
   WifiOff,
-  Home
+  Home,
+  PanelLeft
 } from 'lucide-react';
 import { ThemeToggle } from '../components/theme/ThemeToggle';
 import { useAuth } from '../context/AuthContext';
@@ -178,11 +179,12 @@ export const ProjectsPage: React.FC = () => {
         <header className="w-full px-6 sm:px-8 lg:px-10 h-16 border-b border-[var(--border-soft)] bg-[var(--surface-card)] flex items-center justify-between z-10">
           <div className="flex items-center gap-3.5">
             <button
-              onClick={() => setIsMobileMenuOpen(true)}
-              className="lg:hidden p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/10"
-              aria-label="Open sidebar"
+              onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+              className="p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+              title="Toggle navigation sidebar"
+              aria-label="Toggle navigation sidebar"
             >
-              <Menu className="w-5 h-5" />
+              <PanelLeft className="w-5 h-5 text-[var(--color-mauve)]" />
             </button>
             <div>
               <h1 className="text-lg sm:text-xl font-bold font-heading text-[var(--text-primary)] leading-tight">
@@ -234,9 +236,10 @@ export const ProjectsPage: React.FC = () => {
             <ThemeToggle showLabel={false} />
 
             {user && (
-              <div
-                className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-tr from-[var(--color-merlot)] to-[var(--color-mauve)] text-[var(--color-pale-blush)] flex items-center justify-center font-bold text-xs uppercase shadow-sm border border-[var(--border-soft)]"
-                title={user.fullName || user.email}
+              <Link
+                to="/profile"
+                className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-tr from-[var(--color-merlot)] to-[var(--color-mauve)] text-[var(--color-pale-blush)] flex items-center justify-center font-bold text-xs uppercase shadow-sm border border-[var(--border-soft)] hover:scale-105 hover:border-[var(--color-mauve)] transition-all"
+                title={`${user.fullName || user.email} (Customize Profile)`}
               >
                 {user.avatarUrl ? (
                   <img
@@ -247,7 +250,7 @@ export const ProjectsPage: React.FC = () => {
                 ) : (
                   <span>{user.fullName ? user.fullName[0] : 'U'}</span>
                 )}
-              </div>
+              </Link>
             )}
           </div>
         </header>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, GitBranch, RefreshCw, GitCommit, Menu, Home } from 'lucide-react';
+import { ChevronRight, GitBranch, RefreshCw, GitCommit, PanelLeft, Home } from 'lucide-react';
 import { Project } from '../../types/project';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { useAuth } from '../../context/AuthContext';
@@ -27,10 +27,11 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
         {onMenuToggle && (
           <button
             onClick={onMenuToggle}
-            className="lg:hidden p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex-shrink-0"
-            aria-label="Open navigation sidebar"
+            className="p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex-shrink-0"
+            title="Toggle sidebar"
+            aria-label="Toggle navigation sidebar"
           >
-            <Menu className="w-5 h-5" />
+            <PanelLeft className="w-5 h-5 text-[var(--color-mauve)]" />
           </button>
         )}
 
@@ -87,9 +88,10 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
         <ThemeToggle showLabel={false} />
 
         {user && (
-          <div
-            className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-tr from-[var(--color-merlot)] to-[var(--color-mauve)] text-[var(--color-pale-blush)] flex items-center justify-center font-bold text-xs uppercase shadow-sm flex-shrink-0 border border-[var(--border-soft)]"
-            title={user.fullName || user.email}
+          <Link
+            to="/profile"
+            className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-tr from-[var(--color-merlot)] to-[var(--color-mauve)] text-[var(--color-pale-blush)] flex items-center justify-center font-bold text-xs uppercase shadow-sm flex-shrink-0 border border-[var(--border-soft)] hover:scale-105 hover:border-[var(--color-mauve)] transition-all"
+            title={`${user.fullName || user.email} (Customize Profile)`}
           >
             {user.avatarUrl ? (
               <img
@@ -100,7 +102,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
             ) : (
               <span>{user.fullName ? user.fullName[0] : 'U'}</span>
             )}
-          </div>
+          </Link>
         )}
       </div>
     </header>
