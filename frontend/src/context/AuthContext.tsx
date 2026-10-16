@@ -8,8 +8,7 @@ interface AuthContextType {
   error: string | null;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
-  signUpWithEmail: (email: string, pass: string, fullName: string) => Promise<{ success: boolean; error?: string }>;
-  signInDemo: (email?: string, name?: string) => void;
+  signUpWithEmail: (email: string, pass: string, fullName: string) => Promise<{ success: boolean; error?: string; needsConfirmation?: boolean }>;
   signOut: () => Promise<void>;
   clearError: () => void;
 }
@@ -18,7 +17,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(() => {
-    // Check if demo user stored in localStorage
     const saved = localStorage.getItem('valgent-auth-user');
     if (saved) {
       try {
@@ -50,9 +48,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
           setUser(profile);
           localStorage.setItem('valgent-auth-user', JSON.stringify(profile));
+        } else {
+          setUser(null);
+          localStorage.removeItem('valgent-auth-user');
         }
       } catch (err: any) {
         console.warn('Supabase auth session check notice:', err?.message || err);
+        setUser(null);
+        localStorage.removeItem('valgent-auth-user');
       } finally {
         setLoading(false);
       }
@@ -60,7 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initAuth();
 
-    // Listen for auth state changes
+    // Listen for auth state changes from Supabase
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         const profile: UserProfile = {
@@ -73,7 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         setUser(profile);
         localStorage.setItem('valgent-auth-user', JSON.stringify(profile));
-      } else if (!localStorage.getItem('valgent-auth-demo')) {
+      } else {
         setUser(null);
         localStorage.removeItem('valgent-auth-user');
       }
@@ -85,27 +88,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  // Google OAuth sign-in
+  // Google OAuth sign-in via Supabase
   const signInWithGoogle = async () => {
     try {
       setError(null);
       setLoading(true);
-      const { error: authError } = await supabase.auth.signInWithOAuth({
+      const { data, error: authError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/projects`,
         },
       });
-      if (authError) throw authError;
+      if (authError) {
+        if (
+          authError.message?.toLowerCase().includes('not enabled') ||
+          (authError as any).code === 'validation_failed' ||
+          (authError as any).status === 400
+        ) {
+          throw new Error('Google sign-in is not enabled in your Supabase project dashboard. Please enable Google under Authentication → Providers in Supabase, or sign in using your email and password.');
+        }
+        throw authError;
+      }
     } catch (err: any) {
       console.error('Google sign-in error:', err);
-      setError(err?.message || 'Google sign-in failed');
+      const friendlyMessage =
+        err?.message?.includes('not enabled')
+          ? 'Google sign-in is not enabled in your Supabase project dashboard. Please enable Google under Authentication → Providers in Supabase, or sign in using your email and password.'
+          : err?.message || 'Google sign-in failed. Please verify provider settings or sign in with email.';
+      setError(friendlyMessage);
       setLoading(false);
-      throw err;
+      throw new Error(friendlyMessage);
     }
   };
 
-  // Email + Password sign-in
+  // Email + Password sign-in via Supabase
   const signInWithEmail = async (email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
     try {
       setError(null);
@@ -132,7 +148,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         setUser(profile);
         localStorage.setItem('valgent-auth-user', JSON.stringify(profile));
-        localStorage.removeItem('valgent-auth-demo');
       }
       setLoading(false);
       return { success: true };
@@ -144,8 +159,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Email + Password sign-up
-  const signUpWithEmail = async (email: string, pass: string, fullName: string): Promise<{ success: boolean; error?: string }> => {
+  // Email + Password sign-up via Supabase
+  const signUpWithEmail = async (
+    email: string,
+    pass: string,
+    fullName: string
+  ): Promise<{ success: boolean; error?: string; needsConfirmation?: boolean }> => {
     try {
       setError(null);
       setLoading(true);
@@ -156,6 +175,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           data: {
             full_name: fullName,
           },
+          emailRedirectTo: `${window.location.origin}/projects`,
         },
       });
 
@@ -166,17 +186,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (data.user) {
-        const profile: UserProfile = {
-          id: data.user.id,
-          email: data.user.email || email,
-          fullName: fullName || email.split('@')[0],
-          avatarUrl: undefined,
-          provider: 'email',
-          createdAt: data.user.created_at || new Date().toISOString(),
-        };
-        setUser(profile);
-        localStorage.setItem('valgent-auth-user', JSON.stringify(profile));
-        localStorage.removeItem('valgent-auth-demo');
+        const needsConfirmation = !data.session;
+        if (data.session) {
+          const profile: UserProfile = {
+            id: data.user.id,
+            email: data.user.email || email,
+            fullName: fullName || email.split('@')[0],
+            avatarUrl: undefined,
+            provider: 'email',
+            createdAt: data.user.created_at || new Date().toISOString(),
+          };
+          setUser(profile);
+          localStorage.setItem('valgent-auth-user', JSON.stringify(profile));
+        }
+        setLoading(false);
+        return { success: true, needsConfirmation };
       }
       setLoading(false);
       return { success: true };
@@ -186,21 +210,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
       return { success: false, error: msg };
     }
-  };
-
-  // Instant developer demo login (useful for reviewer preview)
-  const signInDemo = (email = 'sarfaraz.developer@valgent.ai', name = 'Sarfaraz Ahmed') => {
-    const profile: UserProfile = {
-      id: 'usr_' + Math.random().toString(36).substring(2, 9),
-      email,
-      fullName: name,
-      provider: 'demo',
-      createdAt: new Date().toISOString(),
-    };
-    setUser(profile);
-    localStorage.setItem('valgent-auth-user', JSON.stringify(profile));
-    localStorage.setItem('valgent-auth-demo', 'true');
-    setError(null);
   };
 
   const signOut = async () => {
@@ -225,7 +234,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signInWithGoogle,
         signInWithEmail,
         signUpWithEmail,
-        signInDemo,
         signOut,
         clearError,
       }}

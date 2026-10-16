@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ValgentLogo } from '../components/brand/ValgentLogo';
 import { ThemeToggle } from '../components/theme/ThemeToggle';
 import { useAuth } from '../context/AuthContext';
-import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -12,7 +12,7 @@ export const LoginPage: React.FC = () => {
   const [localError, setLocalError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const { signInWithEmail, signInWithGoogle, signInDemo, error } = useAuth();
+  const { signInWithEmail, signInWithGoogle, error } = useAuth();
   const navigate = useNavigate();
 
   const handleEmailLogin = async (e: React.FormEvent) => {
@@ -41,6 +41,7 @@ export const LoginPage: React.FC = () => {
 
   const handleGoogleLogin = async () => {
     try {
+      setLocalError(null);
       setSubmitting(true);
       await signInWithGoogle();
     } catch (err: any) {
@@ -49,23 +50,43 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleDemoAccess = () => {
-    signInDemo('alex.developer@valgent.ai', 'Alex Developer');
-    navigate('/projects');
-  };
-
   return (
     <div className="auth-page">
-      {/* Header with Logo & Night Mode Button */}
-      <header className="auth-header">
-        <ValgentLogo size="md" to="/" />
-        <ThemeToggle showLabel={true} />
+      {/* Sticky Top Header with Back to Landing Page, Logo & Theme Toggle */}
+      <header className="sticky top-0 z-30 w-full border-b border-[var(--border-soft)] bg-[var(--surface-page)]/85 backdrop-blur-md px-4 sm:px-8 py-3.5 flex items-center justify-between">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-2.5 py-1.5 rounded-lg hover:bg-[var(--surface-card)] transition-colors border border-[var(--border-soft)] shadow-sm"
+            title="Return to Landing Page"
+          >
+            <ArrowLeft className="w-4 h-4 text-[var(--color-dusty-rose)]" />
+            <span>Back to Home</span>
+          </Link>
+          <div className="h-4 w-px bg-[var(--border-soft)]" />
+          <ValgentLogo size="sm" to="/" />
+        </div>
+        <ThemeToggle showLabel={false} />
       </header>
 
       {/* Main Centered Login Card */}
       <main className="auth-main">
         <div className="auth-container">
           <div className="auth-card">
+            {/* Top Card Back Link */}
+            <div className="flex items-center justify-between pb-1 -mt-1">
+              <Link
+                to="/"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--color-dusty-rose)] transition-colors group"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+                <span>Return to Landing Page</span>
+              </Link>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-muted)]">
+                Supabase Auth
+              </span>
+            </div>
+
             {/* Title & Subtitle */}
             <div className="text-center">
               <h1 className="text-2xl sm:text-3xl font-extrabold font-heading text-[var(--text-primary)]">
@@ -78,8 +99,8 @@ export const LoginPage: React.FC = () => {
 
             {/* Error Banner */}
             {(localError || error) && (
-              <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-300 flex items-center gap-2.5">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-300 flex items-start gap-2.5 leading-relaxed">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-red-400" />
                 <span>{localError || error}</span>
               </div>
             )}
@@ -97,7 +118,10 @@ export const LoginPage: React.FC = () => {
                     type="email"
                     placeholder="you@domain.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (localError) setLocalError(null);
+                    }}
                     className="ui-input pl-11 text-xs sm:text-sm"
                     required
                   />
@@ -117,7 +141,10 @@ export const LoginPage: React.FC = () => {
                     type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (localError) setLocalError(null);
+                    }}
                     className="ui-input pl-11 pr-11 text-xs sm:text-sm"
                     required
                   />
@@ -178,21 +205,6 @@ export const LoginPage: React.FC = () => {
                 </svg>
                 <span>Continue with Google</span>
               </button>
-
-              {/* Instant Demo Access (Reviewer Mode) */}
-              <button
-                type="button"
-                onClick={handleDemoAccess}
-                className="btn-demo"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Instant Reviewer Demo Mode</span>
-              </button>
-            </div>
-
-            {/* Honest Disclosure Note */}
-            <div className="p-2.5 rounded-lg bg-[var(--surface-card)] border border-[var(--border-soft)] text-[11px] text-[var(--text-muted)] text-center">
-              <span>Authentication is powered by Supabase. Demo mode bypasses credentials for evaluation purposes.</span>
             </div>
 
             {/* Footer Link to Sign Up */}
@@ -207,7 +219,7 @@ export const LoginPage: React.FC = () => {
             </div>
           </div>
         </div>
-    </main>
+      </main>
 
       {/* Footer */}
       <footer className="w-full py-4 text-center text-xs text-[var(--text-muted)]">
