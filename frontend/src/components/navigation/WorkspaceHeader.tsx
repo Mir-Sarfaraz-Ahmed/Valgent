@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, GitBranch, RefreshCw, GitCommit, Menu, Globe } from 'lucide-react';
+import { ChevronRight, GitBranch, RefreshCw, GitCommit, Menu, Home } from 'lucide-react';
 import { Project } from '../../types/project';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { useAuth } from '../../context/AuthContext';
@@ -74,14 +74,14 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
           </button>
         )}
 
-        {/* Access Landing Page Button */}
+        {/* Access Home Button */}
         <Link
           to="/"
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-soft)] hover:border-[var(--color-mauve)]/50 transition-colors shadow-sm"
-          title="Access Landing Page"
+          title="Home"
         >
-          <Globe className="w-3.5 h-3.5 text-[var(--color-mauve)]" />
-          <span className="hidden sm:inline">Landing Page</span>
+          <Home className="w-3.5 h-3.5 text-[var(--color-mauve)]" />
+          <span className="hidden sm:inline">Home</span>
         </Link>
 
         <ThemeToggle showLabel={false} />

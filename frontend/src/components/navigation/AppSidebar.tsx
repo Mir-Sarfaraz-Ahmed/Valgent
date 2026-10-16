@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, NavLink, useParams, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Network, FileText, Map, FolderGit2, LogOut, X, Globe, ArrowUpRight } from 'lucide-react';
+import { LayoutDashboard, Network, FileText, Map, FolderGit2, LogOut, X, Home, ArrowUpRight } from 'lucide-react';
 import { ValgentLogo } from '../brand/ValgentLogo';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { useAuth } from '../../context/AuthContext';
@@ -54,8 +54,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   const navItems = [
     {
       to: '/',
-      label: 'Landing Page',
-      icon: Globe,
+      label: 'Home',
+      icon: Home,
       end: true,
     },
     {
@@ -135,16 +135,16 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 
       {/* Bottom Area: Clean theme toggle and user account info */}
       <div className="flex flex-col gap-3 pt-4 border-t border-[var(--border-soft)]">
-        {/* Landing Page Link Button */}
+        {/* Home Link Button */}
         <Link
           to="/"
           onClick={() => onClose?.()}
           className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-[var(--border-soft)] hover:border-[var(--color-mauve)]/50 transition-all group"
-          title="Access Landing Page"
+          title="Home"
         >
           <div className="flex items-center gap-2.5">
-            <Globe className="w-4 h-4 text-[var(--color-mauve)] group-hover:text-[var(--color-pale-blush)] transition-colors" />
-            <span>Landing Page</span>
+            <Home className="w-4 h-4 text-[var(--color-mauve)] group-hover:text-[var(--color-pale-blush)] transition-colors" />
+            <span>Home</span>
           </div>
           <ArrowUpRight className="w-3.5 h-3.5 text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors" />
         </Link>
