@@ -16,6 +16,7 @@ import { ProjectReport, AnalysisStage } from '../shared/types';
 import { PipelineTracker } from '../shared/pipeline';
 import { redactSecrets, classifyLlmError, classifyError, AnalysisError } from '../shared/errors';
 import { ContextDigester } from '../context/digest';
+import { ProjectStore } from './project-store';
 
 const router = Router();
 
@@ -315,6 +316,14 @@ router.post('/analyze', async (req: Request, res: Response) => {
       await GithubFetcher.cleanup(descriptor);
     }
 
+    // Persist report in project store if applicable
+    try {
+      const targetProjectId = body.project_id || report.project.id;
+      ProjectStore.attachReport(targetProjectId, report);
+    } catch (storeErr) {
+      console.warn(`[${analysisId}] Non-fatal error attaching report to project store:`, storeErr);
+    }
+
     plog(analysisId, 'Analysis completed');
     res.status(200).json({
       analysis_id: analysisId,
@@ -347,6 +356,153 @@ router.post('/analyze', async (req: Request, res: Response) => {
       error: analysisError,
       analysis_metadata: tracker.complete()
     });
+  }
+});
+
+/**
+ * Health check on API v1 prefix
+ */
+router.get('/health', (_req: Request, res: Response) => {
+  res.status(200).json({ status: 'ok', service: 'valgent-agent', api_version: 'v1' });
+});
+
+/**
+ * List all projects with latest report and status
+ */
+router.get('/projects', (_req: Request, res: Response) => {
+  try {
+    const projects = ProjectStore.getAll();
+    res.status(200).json({ projects });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to retrieve projects', details: err?.message });
+  }
+});
+
+/**
+ * Create a new project
+ */
+const CreateProjectSchema = z.object({
+  name: z.string().min(1, 'Project name is required'),
+  repositoryUrl: z.string().url('A valid repository URL is required'),
+  branch: z.string().optional().default('main'),
+  description: z.string().optional().default('')
+});
+
+router.post('/projects', (req: Request, res: Response) => {
+  try {
+    const parsed = CreateProjectSchema.parse(req.body);
+    const project = ProjectStore.create(parsed);
+    res.status(201).json(project);
+  } catch (err: any) {
+    if (err instanceof z.ZodError) {
+      const messages = (err as any).issues?.map((e: any) => e.message) || (err as any).errors?.map((e: any) => e.message) || ['Validation failed'];
+      return res.status(400).json({ error: 'Invalid project payload', details: messages });
+    }
+    res.status(500).json({ error: 'Failed to create project', details: err?.message });
+  }
+});
+
+/**
+ * Retrieve single project by ID
+ */
+router.get('/projects/:id', (req: Request, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : String(req.params.id);
+    const project = ProjectStore.getById(id);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    res.status(200).json(project);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to get project', details: err?.message });
+  }
+});
+
+/**
+ * Update project fields
+ */
+router.patch('/projects/:id', (req: Request, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : String(req.params.id);
+    const updated = ProjectStore.update(id, req.body);
+    if (!updated) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    res.status(200).json(updated);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to update project', details: err?.message });
+  }
+});
+
+/**
+ * Delete project
+ */
+router.delete('/projects/:id', (req: Request, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : String(req.params.id);
+    const deleted = ProjectStore.delete(id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    res.status(200).json({ success: true, message: 'Project deleted' });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to delete project', details: err?.message });
+  }
+});
+
+/**
+ * Retrieve historical reports for a project
+ */
+router.get('/projects/:id/reports', (req: Request, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : String(req.params.id);
+    const project = ProjectStore.getById(id);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    const reports = project.reports || (project.latestReport ? [project.latestReport] : []);
+    res.status(200).json({ reports });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to retrieve reports', details: err?.message });
+  }
+});
+
+/**
+ * Retrieve single analysis report by analysis_id
+ */
+router.get('/analyses/:id', (req: Request, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : String(req.params.id);
+    const report = ProjectStore.findAnalysisById(id);
+    if (!report) {
+      return res.status(404).json({ error: 'Analysis not found' });
+    }
+    res.status(200).json({
+      analysis_id: id,
+      status: "COMPLETED",
+      report
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to retrieve analysis', details: err?.message });
+  }
+});
+
+/**
+ * Poll analysis status
+ */
+router.get('/analyses/:id/status', (req: Request, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : String(req.params.id);
+    const report = ProjectStore.findAnalysisById(id);
+    if (!report) {
+      return res.status(404).json({ error: 'Analysis not found' });
+    }
+    res.status(200).json({
+      status: 'COMPLETED',
+      stage: 'REPORT_AUDITED'
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to retrieve analysis status', details: err?.message });
   }
 });
 

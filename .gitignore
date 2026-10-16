@@ -6,3 +6,4 @@ coverage/
 *.log
 test_all.txt
 test_output.txt
+.valgent-data/
