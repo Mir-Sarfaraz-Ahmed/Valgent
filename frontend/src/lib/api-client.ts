@@ -9,6 +9,7 @@ import {
   GraphNode,
   GraphEdge
 } from '../types/report';
+import { SupabaseService } from './supabase-service';
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
 
@@ -515,6 +516,23 @@ export const ProjectService = {
     const userId = ownerId || getCurrentUserId();
     const cacheKey = userId ? `valgent-server-projects-cache-${userId}` : 'valgent-server-projects-cache';
 
+    // 1. Direct Supabase Query (when authenticated)
+    if (userId) {
+      try {
+        const supaProjects = await SupabaseService.getProjects(userId);
+        if (supaProjects !== null) {
+          localStorage.setItem(cacheKey, JSON.stringify(supaProjects));
+          return {
+            projects: supaProjects,
+            isOfflineFallback: false,
+          };
+        }
+      } catch (e) {
+        console.warn('[ProjectService] Supabase direct query skipped, falling back to API:', e);
+      }
+    }
+
+    // 2. Valgent Backend API Fallback
     try {
       const url = userId ? `${API_BASE_URL}/projects?ownerId=${encodeURIComponent(userId)}` : `${API_BASE_URL}/projects`;
       const res = await fetch(url, {
@@ -578,11 +596,21 @@ export const ProjectService = {
   },
 
   /**
-   * Fetch a single project by ID from backend.
+   * Fetch a single project by ID from backend or Supabase.
    */
   async getProjectById(id: string, ownerId?: string): Promise<Project | null> {
     const userId = ownerId || getCurrentUserId();
     const cacheKey = userId ? `valgent-server-projects-cache-${userId}` : 'valgent-server-projects-cache';
+
+    // 1. Direct Supabase Query
+    if (userId) {
+      try {
+        const supaProject = await SupabaseService.getProjectById(id, userId);
+        if (supaProject) return supaProject;
+      } catch {
+        // Continue to backend fallback
+      }
+    }
 
     try {
       const res = await fetch(`${API_BASE_URL}/projects/${id}`, {
@@ -658,7 +686,7 @@ export const ProjectService = {
       }
 
       const p = await res.json();
-      return {
+      const createdProject: Project = {
         id: p.id,
         name: p.name,
         description: p.description || '',
@@ -670,6 +698,20 @@ export const ProjectService = {
         createdAt: p.createdAt,
         ownerId: p.ownerId || userId || 'default',
       };
+
+      // Also persist to Supabase directly if user is authenticated
+      if (userId) {
+        SupabaseService.createProject({
+          id: createdProject.id,
+          name: createdProject.name,
+          repositoryUrl: createdProject.repositoryUrl,
+          branch: createdProject.branch,
+          description: createdProject.description,
+          ownerId: userId,
+        }).catch(() => {});
+      }
+
+      return createdProject;
     } catch (err: any) {
       if (err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError')) {
         throw new Error('Valgent backend is unreachable. Please verify server is running on port 3000.');
@@ -702,6 +744,10 @@ export const ProjectService = {
       throw new Error(errJson?.error || `Failed to update project (HTTP ${res.status})`);
     }
 
+    if (userId) {
+      SupabaseService.updateProject(id, patch).catch(() => {});
+    }
+
     const p = await res.json();
     return {
       id: p.id,
@@ -724,6 +770,11 @@ export const ProjectService = {
   async deleteProject(id: string, ownerId?: string): Promise<boolean> {
     const userId = ownerId || getCurrentUserId();
     const cacheKey = userId ? `valgent-server-projects-cache-${userId}` : 'valgent-server-projects-cache';
+
+    // Also delete from Supabase
+    if (userId) {
+      SupabaseService.deleteProject(id).catch(() => {});
+    }
 
     try {
       const res = await fetch(`${API_BASE_URL}/projects/${id}`, {
