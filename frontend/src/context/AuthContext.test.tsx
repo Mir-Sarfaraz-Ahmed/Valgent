@@ -90,4 +90,44 @@ describe('AuthContext Hash Fragment Token Handling', () => {
 
     (window as any).location = originalLocation;
   });
+
+  it('calls signInWithOAuth with the dedicated authCallbackUrl', async () => {
+    (supabase.auth.signInWithOAuth as any).mockResolvedValue({
+      data: { url: 'https://accounts.google.com/o/oauth2/auth' },
+      error: null,
+    });
+
+    const assignMock = vi.fn();
+    const originalLocation = window.location;
+    delete (window as any).location;
+    (window as any).location = {
+      ...originalLocation,
+      origin: 'http://localhost:5173',
+      assign: assignMock,
+    };
+
+    let authContextRef: any;
+    const TestInvoker = () => {
+      authContextRef = useAuth();
+      return <div>Test</div>;
+    };
+
+    render(
+      <AuthProvider>
+        <TestInvoker />
+      </AuthProvider>
+    );
+
+    await authContextRef.signInWithGoogle();
+
+    expect(supabase.auth.signInWithOAuth).toHaveBeenCalledWith({
+      provider: 'google',
+      options: {
+        redirectTo: 'http://localhost:5173/auth/callback',
+      },
+    });
+
+    expect(assignMock).toHaveBeenCalledWith('https://accounts.google.com/o/oauth2/auth');
+    (window as any).location = originalLocation;
+  });
 });

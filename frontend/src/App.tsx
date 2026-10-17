@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { SignUpPage } from './pages/SignUpPage';
+import { AuthCallback } from './pages/AuthCallback';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { WorkspacePage } from './pages/WorkspacePage';
 
@@ -40,6 +41,7 @@ export function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignUpPage />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
 
             {/* Authenticated routes */}
             <Route

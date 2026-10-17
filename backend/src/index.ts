@@ -51,14 +51,22 @@ const createRedirectBridge = (frontendUrl: string) => `<!DOCTYPE html>
   </style>
   <script>
     (function() {
-      var frontendBase = "${frontendUrl}".replace(/\\/+$/, '');
+      var frontendBase = "${frontendUrl}".replace(/\/+$/, '');
       var hash = window.location.hash || '';
       var search = window.location.search || '';
       var pathname = window.location.pathname || '';
 
-      // If auth tokens (hash) or OAuth PKCE code (search) exist, forward straight to /projects
+      // Prevent redirect loops if backend and frontend are configured with the same origin
+      if (window.location.origin === frontendBase) {
+        return;
+      }
+
+      // If auth tokens (hash) or OAuth PKCE code (search) exist on generic routes, route to /auth/callback
       var hasAuth = hash.indexOf('access_token=') !== -1 || search.indexOf('code=') !== -1;
-      var targetPath = hasAuth ? '/projects' : (pathname === '/' ? '' : pathname);
+      var targetPath = pathname;
+      if (hasAuth && (pathname === '/' || pathname === '/login' || pathname === '/signup')) {
+        targetPath = '/auth/callback';
+      }
 
       window.location.replace(frontendBase + targetPath + search + hash);
     })();
@@ -72,7 +80,7 @@ const createRedirectBridge = (frontendUrl: string) => `<!DOCTYPE html>
 </html>`;
 
 // Root & web routes: Serve bridge to frontend preserving hash fragments & search params
-app.get(['/', '/projects', '/projects/*', '/login', '/signup'], (req, res) => {
+app.get(['/', '/auth/callback', '/projects', '/projects/*', '/login', '/signup'], (req, res) => {
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.send(createRedirectBridge(frontendUrl));

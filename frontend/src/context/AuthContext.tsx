@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { UserProfile } from '../types/auth';
 import { resolveAvatarDisplayUrl } from '../lib/storage';
+import { getAuthCallbackUrl } from '../lib/auth-config';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -72,6 +73,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check existing Supabase session, URL hash tokens, or OAuth PKCE code
     const initAuth = async () => {
       try {
+        // If currently on /auth/callback, let the AuthCallback component coordinate the exchange
+        if (window.location.pathname === '/auth/callback') {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            const profile = await buildUserProfile(session.user, (session.user.app_metadata?.provider as any) || 'google');
+            setUser(profile);
+            localStorage.setItem('valgent-auth-user', JSON.stringify(profile));
+          }
+          setLoading(false);
+          return;
+        }
+
         let authSessionUser: any = null;
         let authProvider = 'email';
 
@@ -205,10 +218,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setError(null);
       setLoading(true);
+      const callbackUrl = getAuthCallbackUrl();
       const { data, error: authError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/projects`,
+          redirectTo: callbackUrl,
         },
       });
 
@@ -243,10 +257,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setError(null);
       setLoading(true);
+      const callbackUrl = getAuthCallbackUrl();
       const { data, error: authError } = await supabase.auth.signInWithOAuth({
         provider: 'github',
         options: {
-          redirectTo: `${window.location.origin}/projects`,
+          redirectTo: callbackUrl,
         },
       });
 
@@ -330,7 +345,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           data: {
             full_name: fullName,
           },
-          emailRedirectTo: `${window.location.origin}/projects`,
+          emailRedirectTo: getAuthCallbackUrl(),
         },
       });
 
