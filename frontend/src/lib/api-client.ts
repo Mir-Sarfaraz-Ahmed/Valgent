@@ -382,6 +382,7 @@ export const ProjectService = {
     const projectId = `proj-${crypto.randomUUID().substring(0, 8)}`;
 
     let supaCreated: Project | null = null;
+    let supaError: string | null = null;
     if (userId) {
       try {
         supaCreated = await SupabaseService.createProject({
@@ -392,11 +393,13 @@ export const ProjectService = {
           description: description.trim(),
           ownerId: userId,
         });
-      } catch (err) {
+      } catch (err: any) {
+        supaError = err?.message || 'Database error';
         console.warn('[ProjectService] Supabase createProject warning:', err);
       }
     }
 
+    let backendError: string | null = null;
     try {
       const res = await fetch(`${API_BASE_URL}/projects`, {
         method: 'POST',
@@ -436,16 +439,43 @@ export const ProjectService = {
         localStorage.setItem(cacheKey, JSON.stringify([createdProject, ...list]));
 
         return createdProject;
+      } else {
+        const errJson = await res.json().catch(() => null);
+        backendError = errJson?.error || errJson?.details || `HTTP ${res.status}`;
+        console.warn('[ProjectService] Backend register error:', backendError);
       }
     } catch (err: any) {
-      console.warn('[ProjectService] Backend register warning:', err);
+      backendError = err?.message || 'Backend connection failed';
+      console.warn('[ProjectService] Backend register network warning:', err);
     }
 
     if (supaCreated) {
       return supaCreated;
     }
 
-    throw new Error('Failed to create project on server or database.');
+    // Offline fallback: if backend and Supabase are temporarily unreachable, store locally
+    try {
+      const offlineProject: Project = {
+        id: projectId,
+        name: name.trim(),
+        description: description.trim(),
+        repositoryUrl: repositoryUrl.trim(),
+        branch: branch.trim() || 'main',
+        commitSha: 'initial',
+        status: 'in_progress',
+        lastAnalyzedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        ownerId: userId || 'default',
+      };
+      const cacheKey = userId ? `valgent-server-projects-cache-${userId}` : 'valgent-server-projects-cache';
+      const cached = localStorage.getItem(cacheKey);
+      const list: Project[] = cached ? JSON.parse(cached) : [];
+      localStorage.setItem(cacheKey, JSON.stringify([offlineProject, ...list]));
+      console.info('[ProjectService] Created project in offline local cache:', offlineProject.id);
+      return offlineProject;
+    } catch {
+      throw new Error(`Failed to create project: ${backendError || supaError || 'Server unreachable'}`);
+    }
   },
 
   /**

@@ -80,7 +80,7 @@ const createRedirectBridge = (frontendUrl: string) => `<!DOCTYPE html>
 </html>`;
 
 // Root & web routes: Serve bridge to frontend preserving hash fragments & search params
-app.get(['/', '/auth/callback', '/projects', '/projects/*', '/login', '/signup'], (req, res) => {
+app.get(['/', '/auth/callback', '/projects', '/projects/*splat', '/login', '/signup'], (req, res) => {
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.send(createRedirectBridge(frontendUrl));
