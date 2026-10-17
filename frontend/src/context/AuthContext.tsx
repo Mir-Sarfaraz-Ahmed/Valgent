@@ -69,34 +69,89 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    // Check existing Supabase session or exchange OAuth code
+    // Check existing Supabase session, URL hash tokens, or OAuth PKCE code
     const initAuth = async () => {
       try {
-        // Handle incoming OAuth callback with PKCE code
+        let authSessionUser: any = null;
+        let authProvider = 'email';
+
+        let hasOAuthTokens = false;
+
+        // 1. Handle incoming OAuth tokens in URL hash fragment (#access_token=...&refresh_token=...)
+        const rawHash = window.location.hash.startsWith('#')
+          ? window.location.hash.substring(1)
+          : window.location.hash;
+
+        if (rawHash && rawHash.includes('access_token=')) {
+          hasOAuthTokens = true;
+          const hashParams = new URLSearchParams(rawHash);
+          const accessToken = hashParams.get('access_token');
+          const refreshToken = hashParams.get('refresh_token');
+
+          if (accessToken) {
+            try {
+              const { data: hashSessionData, error: hashSessionError } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken || '',
+              });
+
+              if (hashSessionError) {
+                console.warn('Supabase hash setSession notice:', hashSessionError.message);
+              } else if (hashSessionData?.session?.user) {
+                authSessionUser = hashSessionData.session.user;
+                authProvider = (authSessionUser.app_metadata?.provider as any) || 'google';
+              }
+            } catch (hashErr: any) {
+              console.warn('Error processing auth hash token:', hashErr?.message || hashErr);
+            }
+          }
+
+          // Clean up the URL hash immediately so sensitive tokens do not linger in the address bar
+          const cleanUrl = window.location.pathname + (window.location.search || '');
+          window.history.replaceState({}, document.title, cleanUrl);
+        }
+
+        // 2. Handle incoming OAuth callback with PKCE code (?code=...)
         const searchParams = new URLSearchParams(window.location.search);
         const code = searchParams.get('code');
         if (code) {
+          hasOAuthTokens = true;
           const { data: exchangeData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
           if (exchangeError) {
             console.warn('OAuth code exchange notice:', exchangeError.message);
           } else if (exchangeData?.session?.user) {
-            const profile = await buildUserProfile(exchangeData.session.user, 'google');
-            setUser(profile);
-            localStorage.setItem('valgent-auth-user', JSON.stringify(profile));
-            // Clean up the URL search params so the code isn't re-used
-            window.history.replaceState({}, document.title, window.location.pathname);
-            setLoading(false);
-            return;
+            authSessionUser = exchangeData.session.user;
+            authProvider = (authSessionUser.app_metadata?.provider as any) || 'google';
+          }
+          // Clean up the URL search params so the code isn't re-used
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
+        // 3. Fallback: check active Supabase session
+        if (!authSessionUser) {
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          if (sessionError) throw sessionError;
+
+          if (session?.user) {
+            authSessionUser = session.user;
+            authProvider = (session.user.app_metadata?.provider as any) || 'email';
           }
         }
 
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
-
-        if (session?.user) {
-          const profile = await buildUserProfile(session.user, 'email');
+        if (authSessionUser) {
+          const profile = await buildUserProfile(authSessionUser, authProvider);
           setUser(profile);
           localStorage.setItem('valgent-auth-user', JSON.stringify(profile));
+
+          // If incoming OAuth tokens were processed on landing or auth pages, redirect to /projects
+          if (
+            hasOAuthTokens &&
+            (window.location.pathname === '/' ||
+             window.location.pathname === '/login' ||
+             window.location.pathname === '/signup')
+          ) {
+            window.location.replace('/projects');
+          }
         } else {
           setUser(null);
           localStorage.removeItem('valgent-auth-user');
@@ -113,12 +168,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initAuth();
 
     // Listen for auth state changes from Supabase
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // Clean up hash if detectSessionInUrl was triggered
+      if (window.location.hash && window.location.hash.includes('access_token=')) {
+        const cleanUrl = window.location.pathname + (window.location.search || '');
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
+
       if (session?.user) {
-        const profile = await buildUserProfile(session.user, 'email');
+        const provider = (session.user.app_metadata?.provider as any) || 'email';
+        const profile = await buildUserProfile(session.user, provider);
         setUser(profile);
         localStorage.setItem('valgent-auth-user', JSON.stringify(profile));
-      } else {
+
+        // If user logged in and is on landing or auth pages, forward to /projects
+        if (
+          event === 'SIGNED_IN' &&
+          (window.location.pathname === '/login' || window.location.pathname === '/signup')
+        ) {
+          window.location.replace('/projects');
+        }
+      } else if (event === 'SIGNED_OUT') {
         setUser(null);
         localStorage.removeItem('valgent-auth-user');
       }

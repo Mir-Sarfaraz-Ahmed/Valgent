@@ -14,8 +14,14 @@ export const SignUpPage: React.FC = () => {
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const { signUpWithEmail, signInWithGoogle, signInWithGithub, error } = useAuth();
+  const { signUpWithEmail, signInWithGoogle, signInWithGithub, error, user } = useAuth();
   const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (user) {
+      navigate('/projects', { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
